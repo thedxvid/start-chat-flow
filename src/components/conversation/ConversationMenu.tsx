@@ -62,10 +62,6 @@ export function ConversationMenu({
   const handleRename = () => {
     if (newTitle.trim() && newTitle !== conversation.title) {
       onRename(conversation.id, newTitle.trim());
-      toast({
-        title: 'Conversa renomeada',
-        description: 'O título foi atualizado com sucesso.',
-      });
     }
     setIsRenameDialogOpen(false);
   };
@@ -73,10 +69,6 @@ export function ConversationMenu({
   const handleDelete = () => {
     onDelete(conversation.id);
     setIsDeleteDialogOpen(false);
-    toast({
-      title: 'Conversa excluída',
-      description: 'A conversa foi removida com sucesso.',
-    });
   };
 
   const handleExport = () => {
@@ -118,20 +110,10 @@ export function ConversationMenu({
 
   const handleToggleFavorite = () => {
     onToggleFavorite(conversation.id);
-    toast({
-      title: conversation.isFavorite ? 'Removido dos favoritos' : 'Adicionado aos favoritos',
-      description: conversation.isFavorite 
-        ? 'A conversa foi removida dos seus favoritos.'
-        : 'A conversa foi adicionada aos seus favoritos.',
-    });
   };
 
   const handleDuplicate = () => {
     onDuplicate(conversation.id);
-    toast({
-      title: 'Conversa duplicada',
-      description: 'Uma nova conversa foi criada com o mesmo contexto.',
-    });
   };
 
   return (

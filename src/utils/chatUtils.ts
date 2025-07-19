@@ -1,151 +1,93 @@
-export const defaultChatSettings = {
-  aiPersonality: 'Você é uma mentora IA amigável e prestativa, especializada em ajudar pessoas a alcançar seus objetivos pessoais e profissionais. Seja empática, motivacional e ofereça conselhos práticos.',
-  creativity: 0.7,
-  formalMode: false,
-  theme: 'system' as const,
-  colorScheme: 'default' as const,
-  fontSize: 'medium' as const,
-  soundEnabled: true,
-};
 
-export const quickSuggestions = [
-  'Como posso melhorar minha produtividade?',
-  'Quais são as melhores práticas para networking?',
-  'Como criar um plano de carreira efetivo?',
-  'Dicas para equilibrar vida pessoal e profissional',
-  'Como desenvolver habilidades de liderança?',
-  'Estratégias para lidar com o estresse no trabalho',
-  'Como definir e alcançar metas de vida?',
-  'Dicas para melhorar a comunicação interpessoal',
-];
+import type { Conversation, Message } from '@/types/chat';
 
-export const colorSchemes = {
-  default: {
-    primary: '175 60% 45%',
-    accent: '200 50% 50%',
-    name: 'Azul Verdejante',
-  },
-  purple: {
-    primary: '268 75% 60%',
-    accent: '280 65% 55%',
-    name: 'Violeta Real',
-  },
-  green: {
-    primary: '142 70% 45%',
-    accent: '160 55% 50%',
-    name: 'Verde Esmeralda',
-  },
-  orange: {
-    primary: '25 85% 60%',
-    accent: '35 75% 55%',
-    name: 'Laranja Energético',
-  },
-};
-
-export function generateConversationTitle(firstMessage: string): string {
-  const title = firstMessage.substring(0, 50);
-  return title.length < firstMessage.length ? `${title}...` : title;
-}
-
-export function calculateWordCount(messages: Message[]): number {
-  return messages.reduce((count, message) => {
-    return count + message.content.split(/\s+/).filter(word => word.length > 0).length;
-  }, 0);
-}
-
-export function exportConversationAsText(conversation: Conversation): string {
-  let output = `=== ${conversation.title} ===\n`;
-  output += `Criada em: ${conversation.createdAt.toLocaleString('pt-BR')}\n`;
-  output += `Atualizada em: ${conversation.updatedAt.toLocaleString('pt-BR')}\n\n`;
-
-  conversation.messages.forEach((message, index) => {
-    const timestamp = message.timestamp.toLocaleString('pt-BR');
-    const sender = message.sender === 'user' ? 'Você' : 'IA';
-    output += `[${timestamp}] ${sender}:\n${message.content}\n\n`;
-  });
-
-  return output;
-}
-
-export function searchInConversations(
-  conversations: Conversation[], 
-  query: string,
-  filters: SearchFilters
-): Conversation[] {
-  if (!query.trim() && !filters.onlyFavorites) {
-    return filterAndSortConversations(conversations, filters);
-  }
-
-  const searchTerms = query.toLowerCase().split(/\s+/);
+export const generateConversationTitle = (firstMessage: string): string => {
+  // Remove excessive whitespace and limit length
+  const cleaned = firstMessage.trim().replace(/\s+/g, ' ');
   
-  const filteredConversations = conversations.filter(conv => {
-    // Apply favorite filter
-    if (filters.onlyFavorites && !conv.isFavorite) {
-      return false;
+  // If message is short enough, use it as title
+  if (cleaned.length <= 50) {
+    return cleaned;
+  }
+  
+  // Find a good breaking point (sentence end, question mark, etc.)
+  const breakPoints = ['. ', '? ', '! '];
+  for (const breakPoint of breakPoints) {
+    const index = cleaned.indexOf(breakPoint);
+    if (index > 20 && index <= 45) {
+      return cleaned.substring(0, index + 1).trim();
     }
+  }
+  
+  // If no good break point, just truncate at word boundary
+  const truncated = cleaned.substring(0, 47);
+  const lastSpace = truncated.lastIndexOf(' ');
+  
+  if (lastSpace > 20) {
+    return truncated.substring(0, lastSpace) + '...';
+  }
+  
+  return truncated + '...';
+};
 
-    // Apply date filter
-    if (!isWithinDateRange(conv.updatedAt, filters.dateRange)) {
-      return false;
-    }
+export const searchInConversations = (
+  conversations: Conversation[],
+  searchTerm: string
+): Conversation[] => {
+  if (!searchTerm.trim()) {
+    return conversations;
+  }
 
-    // Apply search query
-    if (query.trim()) {
-      const titleMatch = searchTerms.some(term => 
-        conv.title.toLowerCase().includes(term)
-      );
-      
-      const messageMatch = conv.messages.some(message =>
-        searchTerms.some(term => 
-          message.content.toLowerCase().includes(term)
-        )
-      );
-
-      return titleMatch || messageMatch;
-    }
-
-    return true;
-  });
-
-  return sortConversations(filteredConversations, filters.sortBy);
-}
-
-function filterAndSortConversations(conversations: Conversation[], filters: SearchFilters): Conversation[] {
-  let filtered = conversations.filter(conv => {
-    if (filters.onlyFavorites && !conv.isFavorite) {
-      return false;
-    }
-    return isWithinDateRange(conv.updatedAt, filters.dateRange);
-  });
-
-  return sortConversations(filtered, filters.sortBy);
-}
-
-function isWithinDateRange(date: Date, range: string): boolean {
-  const now = new Date();
-  const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-
-  switch (range) {
-    case 'week':
-      return diffInDays <= 7;
-    case 'month':
-      return diffInDays <= 30;
-    case 'year':
-      return diffInDays <= 365;
-    default:
+  const term = searchTerm.toLowerCase();
+  
+  return conversations.filter(conv => {
+    // Search in title
+    if (conv.title.toLowerCase().includes(term)) {
       return true;
-  }
-}
+    }
+    
+    // Search in last message
+    if (conv.lastMessage.toLowerCase().includes(term)) {
+      return true;
+    }
+    
+    // Search in all messages content
+    return conv.messages.some(message => 
+      message.content.toLowerCase().includes(term)
+    );
+  });
+};
 
-function sortConversations(conversations: Conversation[], sortBy: string): Conversation[] {
-  switch (sortBy) {
-    case 'oldest':
-      return [...conversations].sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime());
-    case 'alphabetical':
-      return [...conversations].sort((a, b) => a.title.localeCompare(b.title));
-    default: // 'recent'
-      return [...conversations].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
-  }
-}
+export const exportConversationAsText = (conversation: Conversation): string => {
+  const header = `Conversa: ${conversation.title}\nData: ${conversation.createdAt.toLocaleDateString('pt-BR')}\n${'='.repeat(50)}\n\n`;
+  
+  const messages = conversation.messages.map(message => {
+    const sender = message.sender === 'user' ? 'Você' : 'Mentora';
+    const timestamp = new Date(message.timestamp).toLocaleString('pt-BR');
+    return `[${timestamp}] ${sender}:\n${message.content}\n`;
+  }).join('\n');
+  
+  return header + messages;
+};
 
-import type { Message, Conversation, SearchFilters } from '@/types/chat';
+export const formatMessageTime = (date: Date): string => {
+  return date.toLocaleTimeString('pt-BR', { 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
+};
+
+export const formatConversationDate = (date: Date): string => {
+  const now = new Date();
+  const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+  
+  if (diffInHours < 1) {
+    return 'Agora';
+  } else if (diffInHours < 24) {
+    return `${diffInHours}h`;
+  } else if (diffInHours < 48) {
+    return 'Ontem';
+  } else {
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  }
+};

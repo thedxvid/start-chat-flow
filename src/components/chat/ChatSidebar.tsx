@@ -1,16 +1,13 @@
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { ConversationMenu } from '@/components/conversation/ConversationMenu';
 import { SubscriptionStatus } from '@/components/subscription/SubscriptionStatus';
 import { useAuth } from '@/hooks/useAuth';
-import { Plus, MessageCircle, Clock, Calendar, Star, Search, Filter, X, LogOut } from 'lucide-react';
-import type { Conversation, SearchFilters } from '@/types/chat';
-import { searchInConversations } from '@/utils/chatUtils';
+import { Plus, MessageCircle, Clock, Calendar, Star, LogOut } from 'lucide-react';
+import type { Conversation } from '@/types/chat';
 
 interface ChatSidebarProps {
   conversations: Conversation[];
@@ -121,7 +118,7 @@ export function ChatSidebar({
       </div>
 
       {/* Subscription Status */}
-      {!isSubscribed && <SubscriptionStatus />}
+      <SubscriptionStatus />
 
       {/* Conversations List */}
       <ScrollArea className="flex-1">
@@ -176,8 +173,8 @@ export function ChatSidebar({
                         </div>
                       </button>
                       
-                      {/* Menu de contexto */}
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                      {/* Menu de contexto - posicionado à direita */}
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-2">
                         <ConversationMenu
                           conversation={conversation}
                           onRename={onRenameConversation}

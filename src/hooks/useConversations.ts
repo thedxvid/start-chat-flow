@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -5,23 +6,23 @@ import { useToast } from '@/hooks/use-toast';
 import type { Conversation } from '@/types/chat';
 
 export function useConversations() {
-  const { user, isSubscribed } = useAuth();
+  const { user, hasAccess } = useAuth();
   const { toast } = useToast();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load conversations when user is authenticated
+  // Load conversations when user is authenticated and has access
   useEffect(() => {
-    if (user) {
+    if (user && hasAccess) {
       loadConversations();
     } else {
       setConversations([]);
       setLoading(false);
     }
-  }, [user]);
+  }, [user, hasAccess]);
 
   const loadConversations = async () => {
-    if (!user) return;
+    if (!user || !hasAccess) return;
 
     try {
       const { data, error } = await supabase
@@ -57,13 +58,10 @@ export function useConversations() {
   };
 
   const createConversation = async (title: string, firstMessage: string): Promise<string | null> => {
-    if (!user) return null;
-
-    // Check subscription limits for free users
-    if (!isSubscribed && conversations.length >= 3) {
+    if (!user || !hasAccess) {
       toast({
-        title: 'Limite atingido',
-        description: 'Usuários gratuitos podem ter até 3 conversas. Faça upgrade para Premium!',
+        title: 'Acesso negado',
+        description: 'Você precisa ter uma assinatura ativa para criar conversas.',
         variant: 'destructive',
       });
       return null;
@@ -116,7 +114,7 @@ export function useConversations() {
   };
 
   const updateConversation = async (id: string, updates: Partial<Conversation>) => {
-    if (!user) return;
+    if (!user || !hasAccess) return;
 
     try {
       const dbUpdates: any = {};
@@ -154,7 +152,7 @@ export function useConversations() {
   };
 
   const deleteConversation = async (id: string) => {
-    if (!user) return;
+    if (!user || !hasAccess) return;
 
     try {
       const { error } = await supabase
@@ -166,6 +164,11 @@ export function useConversations() {
       if (error) throw error;
 
       setConversations(prev => prev.filter(conv => conv.id !== id));
+      
+      toast({
+        title: 'Conversa excluída',
+        description: 'A conversa foi removida com sucesso.',
+      });
     } catch (error) {
       console.error('Error deleting conversation:', error);
       toast({
@@ -177,20 +180,10 @@ export function useConversations() {
   };
 
   const duplicateConversation = async (id: string) => {
-    if (!user) return;
+    if (!user || !hasAccess) return;
 
     const original = conversations.find(conv => conv.id === id);
     if (!original) return;
-
-    // Check subscription limits for free users
-    if (!isSubscribed && conversations.length >= 3) {
-      toast({
-        title: 'Limite atingido',
-        description: 'Usuários gratuitos podem ter até 3 conversas. Faça upgrade para Premium!',
-        variant: 'destructive',
-      });
-      return;
-    }
 
     try {
       const duplicatedConv = {
@@ -221,11 +214,57 @@ export function useConversations() {
       };
 
       setConversations(prev => [formattedConv, ...prev]);
+      
+      toast({
+        title: 'Conversa duplicada',
+        description: 'Uma nova conversa foi criada com o mesmo contexto.',
+      });
     } catch (error) {
       console.error('Error duplicating conversation:', error);
       toast({
         title: 'Erro ao duplicar conversa',
         description: 'Não foi possível duplicar a conversa.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const toggleFavorite = async (id: string) => {
+    if (!user || !hasAccess) return;
+
+    const conversation = conversations.find(conv => conv.id === id);
+    if (!conversation) return;
+
+    const newFavoriteStatus = !conversation.isFavorite;
+
+    try {
+      const { error } = await supabase
+        .from('conversations')
+        .update({ is_favorite: newFavoriteStatus })
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setConversations(prev => 
+        prev.map(conv => 
+          conv.id === id 
+            ? { ...conv, isFavorite: newFavoriteStatus }
+            : conv
+        )
+      );
+
+      toast({
+        title: newFavoriteStatus ? 'Adicionado aos favoritos' : 'Removido dos favoritos',
+        description: newFavoriteStatus 
+          ? 'A conversa foi adicionada aos seus favoritos.'
+          : 'A conversa foi removida dos seus favoritos.',
+      });
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      toast({
+        title: 'Erro ao alterar favorito',
+        description: 'Não foi possível alterar o status de favorito.',
         variant: 'destructive',
       });
     }
@@ -238,6 +277,7 @@ export function useConversations() {
     updateConversation,
     deleteConversation,
     duplicateConversation,
+    toggleFavorite,
     reloadConversations: loadConversations
   };
 }

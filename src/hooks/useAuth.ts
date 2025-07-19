@@ -1,6 +1,8 @@
+
 import { useState, useEffect, createContext, useContext } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: User | null;
@@ -10,6 +12,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   isSubscribed: boolean;
+  hasAccess: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,6 +30,10 @@ export const useAuthProvider = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const { toast } = useToast();
+
+  // hasAccess is now the same as isSubscribed - only paying users have access
+  const hasAccess = isSubscribed;
 
   useEffect(() => {
     // Set up auth state listener
@@ -76,6 +83,7 @@ export const useAuthProvider = () => {
 
       if (error) {
         console.error('Error checking subscription:', error);
+        setIsSubscribed(false);
         return;
       }
 
@@ -128,6 +136,7 @@ export const useAuthProvider = () => {
     signUp,
     signOut,
     isSubscribed,
+    hasAccess,
   };
 };
 
