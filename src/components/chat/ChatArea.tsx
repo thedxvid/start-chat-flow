@@ -4,7 +4,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
-import aiAvatar from '@/assets/ai-avatar.png';
+import expertAvatar from '@/assets/expert-avatar.png';
 
 interface Message {
   id: string;
@@ -101,11 +101,11 @@ export function ChatArea({
               Bem-vindo ao Sistema Start
             </h2>
             <p className="text-muted-foreground mb-6">
-              Sua mentora IA está pronta para ajudar. Inicie uma nova conversa para começar!
+              Sua mentora expert está pronta para ajudar. Inicie uma nova conversa para começar!
             </p>
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <Badge variant="secondary" className="text-xs">
-                IA Avançada
+                Expert em Marketing
               </Badge>
               <Badge variant="secondary" className="text-xs">
                 Respostas Rápidas
@@ -129,13 +129,13 @@ export function ChatArea({
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-primary flex items-center justify-center shadow-chat">
             <img 
-              src={aiAvatar} 
-              alt="IA Assistant" 
+              src={expertAvatar} 
+              alt="Mentora Expert" 
               className="w-full h-full object-cover"
             />
           </div>
           <div>
-            <h2 className="font-semibold text-foreground">Mentora IA</h2>
+            <h2 className="font-semibold text-foreground">Mentora Expert</h2>
             <p className="text-sm text-muted-foreground">
               {isTyping ? 'Digitando...' : 'Online'}
             </p>
@@ -177,8 +177,8 @@ export function ChatArea({
                         <User className="h-4 w-4" />
                       ) : (
                         <img 
-                          src={aiAvatar} 
-                          alt="IA" 
+                          src={expertAvatar} 
+                          alt="Mentora Expert" 
                           className="w-full h-full object-cover"
                         />
                       )}
@@ -214,8 +214,8 @@ export function ChatArea({
             <div className="flex gap-3">
               <div className="w-8 h-8 rounded-full bg-gradient-primary overflow-hidden flex-shrink-0">
                 <img 
-                  src={aiAvatar} 
-                  alt="IA" 
+                  src={expertAvatar} 
+                  alt="Mentora Expert" 
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -242,7 +242,7 @@ export function ChatArea({
               value={inputValue}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Converse com sua mentora IA..."
+              placeholder="Converse com sua mentora expert..."
               className="w-full p-3 pr-4 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none min-h-[44px] max-h-[120px]"
               rows={1}
             />

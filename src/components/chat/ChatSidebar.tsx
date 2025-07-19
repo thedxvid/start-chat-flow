@@ -6,7 +6,9 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ConversationMenu } from '@/components/conversation/ConversationMenu';
-import { Plus, MessageCircle, Clock, Calendar, Star, Search, Filter, X } from 'lucide-react';
+import { SubscriptionStatus } from '@/components/subscription/SubscriptionStatus';
+import { useAuth } from '@/hooks/useAuth';
+import { Plus, MessageCircle, Clock, Calendar, Star, Search, Filter, X, LogOut } from 'lucide-react';
 import type { Conversation, SearchFilters } from '@/types/chat';
 import { searchInConversations } from '@/utils/chatUtils';
 
@@ -31,6 +33,7 @@ export function ChatSidebar({
   onToggleFavorite = () => {},
   onDuplicateConversation = () => {}
 }: ChatSidebarProps) {
+  const { signOut, user, isSubscribed } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
 
   const formatTimestamp = (date: Date) => {
@@ -87,13 +90,23 @@ export function ChatSidebar({
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-bold text-foreground">Sistema Start</h1>
-          <Button
-            onClick={onNewChat}
-            size="sm"
-            className="bg-gradient-primary hover:bg-primary-hover text-primary-foreground shadow-elegant"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={onNewChat}
+              size="sm"
+              className="bg-gradient-primary hover:bg-primary-hover text-primary-foreground shadow-elegant"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={signOut}
+              size="sm"
+              variant="ghost"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         
         <div className="relative">
@@ -106,6 +119,9 @@ export function ChatSidebar({
           />
         </div>
       </div>
+
+      {/* Subscription Status */}
+      {!isSubscribed && <SubscriptionStatus />}
 
       {/* Conversations List */}
       <ScrollArea className="flex-1">
