@@ -126,31 +126,29 @@ export function ChatSidebar({
                 {convs.map(conversation => (
                   <div
                     key={conversation.id}
-                    className={`group relative w-full p-3 rounded-lg transition-all duration-200 mb-1 hover:bg-chat-sidebar-active ${
+                    className={`group relative w-full rounded-lg transition-all duration-200 mb-1 hover:bg-chat-sidebar-active ${
                       activeConversationId === conversation.id
                         ? 'bg-chat-sidebar-active border-l-4 border-l-primary'
                         : ''
                     }`}
                   >
-                    <button
-                      onClick={() => onSelectConversation(conversation.id)}
-                      className="w-full text-left"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            {conversation.isFavorite && (
-                              <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                            )}
-                            <h3 className="font-medium text-foreground text-sm truncate group-hover:text-primary transition-colors">
-                              {conversation.title}
-                            </h3>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                            {conversation.lastMessage}
-                          </p>
+                    <div className="flex items-start gap-2 p-3">
+                      <button
+                        onClick={() => onSelectConversation(conversation.id)}
+                        className="flex-1 text-left min-w-0"
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          {conversation.isFavorite && (
+                            <Star className="h-3 w-3 text-yellow-500 fill-current flex-shrink-0" />
+                          )}
+                          <h3 className="font-medium text-foreground text-sm truncate group-hover:text-primary transition-colors">
+                            {conversation.title}
+                          </h3>
                         </div>
-                        <div className="flex flex-col items-end gap-1">
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {conversation.lastMessage}
+                        </p>
+                        <div className="flex items-center justify-between mt-2">
                           <span className="text-xs text-muted-foreground">
                             {formatTimestamp(conversation.timestamp)}
                           </span>
@@ -160,18 +158,18 @@ export function ChatSidebar({
                             </Badge>
                           )}
                         </div>
+                      </button>
+                      
+                      {/* Menu de contexto */}
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                        <ConversationMenu
+                          conversation={conversation}
+                          onRename={onRenameConversation}
+                          onDelete={onDeleteConversation}
+                          onToggleFavorite={onToggleFavorite}
+                          onDuplicate={onDuplicateConversation}
+                        />
                       </div>
-                    </button>
-                    
-                    {/* Menu de contexto - agora sempre visível no hover */}
-                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <ConversationMenu
-                        conversation={conversation}
-                        onRename={onRenameConversation}
-                        onDelete={onDeleteConversation}
-                        onToggleFavorite={onToggleFavorite}
-                        onDuplicate={onDuplicateConversation}
-                      />
                     </div>
                   </div>
                 ))}
