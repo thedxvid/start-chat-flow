@@ -129,7 +129,7 @@ export function ChatArea({
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-primary flex items-center justify-center shadow-chat">
             <img 
-              src={expertAvatar} 
+              src="/lovable-uploads/2004ae96-8379-47a2-9892-02c1385bf95c.png" 
               alt="Mentora Expert" 
               className="w-full h-full object-cover"
             />
