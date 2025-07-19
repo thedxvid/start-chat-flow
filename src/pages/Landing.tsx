@@ -2,12 +2,18 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, MessageCircle, Zap, Star, Crown, ArrowRight } from 'lucide-react';
+import { CheckCircle, MessageCircle, Zap, Star, Crown, ArrowRight, LogIn } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Landing() {
+  const navigate = useNavigate();
+  
   const handleCheckout = () => {
-    // Substitua pela sua URL real do checkout da Kiwify
-    window.open('https://pay.kiwify.com.br/your-product-link', '_blank');
+    window.open('https://pay.kiwify.com.br/PQxnaPy', '_blank');
+  };
+
+  const handleLogin = () => {
+    navigate('/auth');
   };
 
   return (
@@ -20,9 +26,19 @@ export default function Landing() {
               <Crown className="h-8 w-8 text-primary" />
               <h1 className="text-2xl font-bold text-foreground">Sistema Start</h1>
             </div>
-            <Button onClick={handleCheckout} className="bg-gradient-primary hover:bg-primary-hover">
-              Começar Agora
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button 
+                onClick={handleLogin} 
+                variant="ghost" 
+                className="text-foreground hover:text-primary"
+              >
+                <LogIn className="h-4 w-4 mr-2" />
+                Entrar
+              </Button>
+              <Button onClick={handleCheckout} className="bg-gradient-primary hover:bg-primary-hover">
+                Começar Agora
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -155,8 +171,8 @@ export default function Landing() {
                 Mentoria expert em marketing digital
               </CardDescription>
               <div className="mt-4">
-                <span className="text-4xl font-bold text-primary">R$ 97</span>
-                <span className="text-muted-foreground">/mês</span>
+                <span className="text-4xl font-bold text-primary">R$ 297</span>
+                <span className="text-muted-foreground">/único</span>
               </div>
             </CardHeader>
 
@@ -180,7 +196,7 @@ export default function Landing() {
                 className="w-full mt-6 bg-gradient-primary hover:bg-primary-hover text-lg py-6"
                 size="lg"
               >
-                Começar Agora - R$ 97/mês
+                Começar Agora - R$ 297
               </Button>
 
               <p className="text-center text-sm text-muted-foreground mt-4">
