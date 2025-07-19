@@ -91,3 +91,36 @@ export const formatConversationDate = (date: Date): string => {
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
   }
 };
+
+export const defaultChatSettings = {
+  aiPersonality: 'Você é uma mentora especialista em negócios e empreendedorismo. Seja prestativa, inspiradora e forneça conselhos práticos.',
+  creativity: 0.7,
+  formalMode: false,
+  theme: 'system' as const,
+  colorScheme: 'default' as const,
+  fontSize: 'medium' as const,
+  soundEnabled: true
+};
+
+export const colorSchemes = {
+  default: {
+    name: 'Padrão',
+    primary: '222.2 84% 4.9%',
+    accent: '210 40% 90%'
+  },
+  blue: {
+    name: 'Azul',
+    primary: '221.2 83.2% 53.3%',
+    accent: '210 40% 98%'
+  },
+  green: {
+    name: 'Verde',
+    primary: '142.1 76.2% 36.3%',
+    accent: '138 76% 97%'
+  },
+  purple: {
+    name: 'Roxo',
+    primary: '262.1 83.3% 57.8%',
+    accent: '270 95% 98%'
+  }
+};
