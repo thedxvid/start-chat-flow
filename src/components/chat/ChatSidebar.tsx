@@ -1,17 +1,13 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Plus, MessageCircle, Clock, Calendar } from 'lucide-react';
-
-interface Conversation {
-  id: string;
-  title: string;
-  lastMessage: string;
-  timestamp: Date;
-  isActive?: boolean;
-}
+import { Input } from '@/components/ui/input';
+import { ConversationMenu } from '@/components/conversation/ConversationMenu';
+import { Plus, MessageCircle, Clock, Calendar, Star, Search, Filter, X } from 'lucide-react';
+import type { Conversation, SearchFilters } from '@/types/chat';
+import { searchInConversations } from '@/utils/chatUtils';
 
 interface ChatSidebarProps {
   conversations: Conversation[];

@@ -1,23 +1,15 @@
 import { useState, useEffect } from 'react';
 import { ChatSidebar } from './ChatSidebar';
 import { ChatArea } from './ChatArea';
+import { SettingsModal } from '@/components/settings/SettingsModal';
+import { StatsModal } from '@/components/stats/StatsModal';
+import { ConversationMenu } from '@/components/conversation/ConversationMenu';
 import { Button } from '@/components/ui/button';
-import { Menu, X } from 'lucide-react';
-
-interface Message {
-  id: string;
-  content: string;
-  sender: 'user' | 'ai';
-  timestamp: Date;
-}
-
-interface Conversation {
-  id: string;
-  title: string;
-  lastMessage: string;
-  timestamp: Date;
-  messages: Message[];
-}
+import { Menu, X, Settings, BarChart3 } from 'lucide-react';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useKeyboard } from '@/hooks/useKeyboard';
+import type { Message, Conversation, ChatSettings } from '@/types/chat';
+import { defaultChatSettings, generateConversationTitle } from '@/utils/chatUtils';
 
 export function ChatLayout() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -32,7 +24,10 @@ export function ChatLayout() {
         id: '1',
         title: 'Como começar meu negócio?',
         lastMessage: 'Ótimas dicas! Vou começar com o planejamento financeiro.',
-        timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
+        timestamp: new Date(Date.now() - 1000 * 60 * 30),
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
+        updatedAt: new Date(Date.now() - 1000 * 60 * 30),
+        isFavorite: false,
         messages: [
           {
             id: 'm1',
@@ -58,7 +53,10 @@ export function ChatLayout() {
         id: '2',
         title: 'Estratégias de marketing digital',
         lastMessage: 'Perfeito! O Instagram e LinkedIn serão ideais para seu público.',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
+        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24),
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 25),
+        updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
+        isFavorite: true,
         messages: [
           {
             id: 'm4',
@@ -104,6 +102,9 @@ export function ChatLayout() {
       title: 'Nova conversa',
       lastMessage: '',
       timestamp: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isFavorite: false,
       messages: []
     };
     
