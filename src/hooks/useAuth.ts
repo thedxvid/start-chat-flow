@@ -13,6 +13,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   isSubscribed: boolean;
   hasAccess: boolean;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,10 +31,12 @@ export const useAuthProvider = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { toast } = useToast();
 
-  // hasAccess is now the same as isSubscribed - only paying users have access
-  const hasAccess = isSubscribed;
+  // Admin users have access regardless of subscription
+  // Regular users need subscription
+  const hasAccess = isAdmin || (user?.email === 'davicastrowp@gmail.com') || isSubscribed;
 
   useEffect(() => {
     // Set up auth state listener
@@ -46,9 +49,11 @@ export const useAuthProvider = () => {
         if (session?.user) {
           setTimeout(async () => {
             await checkSubscriptionStatus(session.user.id);
+            await checkAdminStatus(session.user.id);
           }, 0);
         } else {
           setIsSubscribed(false);
+          setIsAdmin(false);
         }
         
         setLoading(false);
@@ -63,6 +68,7 @@ export const useAuthProvider = () => {
       if (session?.user) {
         setTimeout(async () => {
           await checkSubscriptionStatus(session.user.id);
+          await checkAdminStatus(session.user.id);
         }, 0);
       }
       
@@ -97,6 +103,28 @@ export const useAuthProvider = () => {
     } catch (error) {
       console.error('Error in checkSubscriptionStatus:', error);
       setIsSubscribed(false);
+    }
+  };
+
+  const checkAdminStatus = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error checking admin status:', error);
+        setIsAdmin(false);
+        return;
+      }
+
+      setIsAdmin(!!data);
+    } catch (error) {
+      console.error('Error in checkAdminStatus:', error);
+      setIsAdmin(false);
     }
   };
 
@@ -137,6 +165,7 @@ export const useAuthProvider = () => {
     signOut,
     isSubscribed,
     hasAccess,
+    isAdmin,
   };
 };
 

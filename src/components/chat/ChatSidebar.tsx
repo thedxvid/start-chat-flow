@@ -5,11 +5,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { ConversationMenu } from '@/components/conversation/ConversationMenu';
 import { SubscriptionStatus } from '@/components/subscription/SubscriptionStatus';
-import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 import { Plus, MessageCircle, Clock, Calendar, Star, LogOut } from 'lucide-react';
 import type { Conversation } from '@/types/chat';
 
-interface ChatSidebarProps {
+import expertAvatar from '@/assets/expert-avatar.png';
   conversations: Conversation[];
   onNewChat: () => void;
   onSelectConversation: (id: string) => void;
