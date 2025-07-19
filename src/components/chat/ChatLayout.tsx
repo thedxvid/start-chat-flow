@@ -8,10 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Menu, X, Settings, BarChart3 } from 'lucide-react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useKeyboard } from '@/hooks/useKeyboard';
+import { useNavigate } from 'react-router-dom';
 import type { Message, Conversation, ChatSettings } from '@/types/chat';
 import { defaultChatSettings, generateConversationTitle } from '@/utils/chatUtils';
 
 export function ChatLayout() {
+  const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string>();
   const [isTyping, setIsTyping] = useState(false);
@@ -97,19 +99,8 @@ export function ChatLayout() {
   }, []);
 
   const handleNewChat = () => {
-    const newConversation: Conversation = {
-      id: Date.now().toString(),
-      title: 'Nova conversa',
-      lastMessage: '',
-      timestamp: new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      isFavorite: false,
-      messages: []
-    };
-    
-    setConversations(prev => [newConversation, ...prev]);
-    setActiveConversationId(newConversation.id);
+    // Navega para a tela inicial forçando mostrar a interface de nova conversa
+    navigate('/?new=true');
   };
 
   const handleSelectConversation = (id: string) => {

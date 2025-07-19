@@ -94,9 +94,10 @@ export function ChatSidebar({
             <Button
               onClick={onNewChat}
               size="sm"
-              className="bg-gradient-primary hover:bg-primary-hover text-primary-foreground shadow-elegant"
+              className="bg-gradient-primary hover:bg-primary-hover text-primary-foreground shadow-elegant flex items-center gap-1"
             >
               <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Nova</span>
             </Button>
             <Button
               onClick={signOut}

@@ -3,19 +3,23 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/useAuth';
 import { useConversations } from '@/hooks/useConversations';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChatLayout } from '@/components/chat/ChatLayout';
 import { Paperclip, Search, Mic, BarChart3, FileText, PenTool, Sparkles, MoreHorizontal, LogOut, Settings, Crown } from 'lucide-react';
 
 const Index = () => {
   const { user, signOut, isAdmin } = useAuth();
   const { conversations, createConversation } = useConversations();
+  const [searchParams] = useSearchParams();
   const [initialMessage, setInitialMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Se há conversas existentes, mostra o chat layout
-  if (conversations.length > 0) {
+  // Verifica se deve forçar mostrar a tela inicial
+  const forceStartScreen = searchParams.get('new') === 'true';
+  
+  // Se há conversas existentes E não está forçando a tela inicial, mostra o chat layout
+  if (conversations.length > 0 && !forceStartScreen) {
     return <ChatLayout />;
   }
 
