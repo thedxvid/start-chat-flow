@@ -10,6 +10,9 @@ import { Plus, MessageCircle, Clock, Calendar, Star, LogOut } from 'lucide-react
 import type { Conversation } from '@/types/chat';
 
 import expertAvatar from '@/assets/expert-avatar.png';
+import { useAuth } from '@/hooks/useAuth';
+
+interface ChatSidebarProps {
   conversations: Conversation[];
   onNewChat: () => void;
   onSelectConversation: (id: string) => void;
