@@ -176,11 +176,11 @@ export function ChatArea({
                       {message.sender === 'user' ? (
                         <User className="h-4 w-4" />
                       ) : (
-                        <img 
-                          src={expertAvatar} 
-                          alt="Mentora Expert" 
-                          className="w-full h-full object-cover"
-                        />
+                         <img 
+                           src="/lovable-uploads/6e7516e8-25b6-4f1e-8ceb-de974ccd23d8.png" 
+                           alt="Mentora Expert" 
+                           className="w-full h-full object-cover"
+                         />
                       )}
                     </div>
 
@@ -213,11 +213,11 @@ export function ChatArea({
           {isTyping && (
             <div className="flex gap-3">
               <div className="w-8 h-8 rounded-full bg-gradient-primary overflow-hidden flex-shrink-0">
-                <img 
-                  src={expertAvatar} 
-                  alt="Mentora Expert" 
-                  className="w-full h-full object-cover"
-                />
+                 <img 
+                   src="/lovable-uploads/6e7516e8-25b6-4f1e-8ceb-de974ccd23d8.png" 
+                   alt="Mentora Expert" 
+                   className="w-full h-full object-cover"
+                 />
               </div>
               <div className="bg-chat-ai text-chat-ai-foreground p-3 rounded-lg rounded-bl-sm shadow-message">
                 <div className="flex gap-1">
