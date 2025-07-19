@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import {
   DropdownMenu,
@@ -74,7 +75,7 @@ export function ConversationMenu({
     setIsDeleteDialogOpen(false);
     toast({
       title: 'Conversa excluída',
-      description: 'A conversa foi movida para a lixeira.',
+      description: 'A conversa foi removida com sucesso.',
     });
   };
 
@@ -140,7 +141,7 @@ export function ConversationMenu({
           <Button 
             variant="ghost" 
             size="sm" 
-            className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="h-8 w-8 p-0 hover:bg-muted"
             onClick={(e) => e.stopPropagation()}
           >
             <MoreVertical className="h-4 w-4" />
@@ -235,7 +236,7 @@ export function ConversationMenu({
             <AlertDialogTitle>Excluir Conversa</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir a conversa "{conversation.title}"? 
-              Esta ação pode ser desfeita através da lixeira por 30 dias.
+              Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

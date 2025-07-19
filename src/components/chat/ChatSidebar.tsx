@@ -1,3 +1,4 @@
+
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -14,13 +15,21 @@ interface ChatSidebarProps {
   onNewChat: () => void;
   onSelectConversation: (id: string) => void;
   activeConversationId?: string;
+  onRenameConversation?: (id: string, newTitle: string) => void;
+  onDeleteConversation?: (id: string) => void;
+  onToggleFavorite?: (id: string) => void;
+  onDuplicateConversation?: (id: string) => void;
 }
 
 export function ChatSidebar({ 
   conversations, 
   onNewChat, 
   onSelectConversation, 
-  activeConversationId 
+  activeConversationId,
+  onRenameConversation = () => {},
+  onDeleteConversation = () => {},
+  onToggleFavorite = () => {},
+  onDuplicateConversation = () => {}
 }: ChatSidebarProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -115,36 +124,56 @@ export function ChatSidebar({
                 </div>
                 
                 {convs.map(conversation => (
-                  <button
+                  <div
                     key={conversation.id}
-                    onClick={() => onSelectConversation(conversation.id)}
-                    className={`w-full p-3 text-left rounded-lg transition-all duration-200 mb-1 group hover:bg-chat-sidebar-active ${
+                    className={`group relative w-full p-3 rounded-lg transition-all duration-200 mb-1 hover:bg-chat-sidebar-active ${
                       activeConversationId === conversation.id
                         ? 'bg-chat-sidebar-active border-l-4 border-l-primary'
                         : ''
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-foreground text-sm truncate group-hover:text-primary transition-colors">
-                          {conversation.title}
-                        </h3>
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                          {conversation.lastMessage}
-                        </p>
+                    <button
+                      onClick={() => onSelectConversation(conversation.id)}
+                      className="w-full text-left"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            {conversation.isFavorite && (
+                              <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                            )}
+                            <h3 className="font-medium text-foreground text-sm truncate group-hover:text-primary transition-colors">
+                              {conversation.title}
+                            </h3>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                            {conversation.lastMessage}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-xs text-muted-foreground">
+                            {formatTimestamp(conversation.timestamp)}
+                          </span>
+                          {activeConversationId === conversation.id && (
+                            <Badge variant="secondary" className="text-xs">
+                              Ativa
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <span className="text-xs text-muted-foreground">
-                          {formatTimestamp(conversation.timestamp)}
-                        </span>
-                        {activeConversationId === conversation.id && (
-                          <Badge variant="secondary" className="text-xs">
-                            Ativa
-                          </Badge>
-                        )}
-                      </div>
+                    </button>
+                    
+                    {/* Menu de contexto - agora sempre visível no hover */}
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <ConversationMenu
+                        conversation={conversation}
+                        onRename={onRenameConversation}
+                        onDelete={onDeleteConversation}
+                        onToggleFavorite={onToggleFavorite}
+                        onDuplicate={onDuplicateConversation}
+                      />
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             );
