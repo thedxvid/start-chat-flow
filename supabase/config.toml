@@ -2,3 +2,6 @@ project_id = "wpqthkvidfmjyroaijiq"
 
 [functions.kiwify-webhook]
 verify_jwt = false
+
+[functions.chat-nathi]
+verify_jwt = false

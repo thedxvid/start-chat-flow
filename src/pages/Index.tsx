@@ -3,14 +3,18 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/useAuth';
 import { useConversations } from '@/hooks/useConversations';
+import { useNathiChat } from '@/hooks/useNathiChat';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChatLayout } from '@/components/chat/ChatLayout';
 import { ChatSidebar } from '@/components/chat/ChatSidebar';
 import { Paperclip, Search, Mic, BarChart3, FileText, PenTool, Sparkles, MoreHorizontal, LogOut, Settings, Crown } from 'lucide-react';
+import type { Message } from '@/types/chat';
+import { toast } from 'sonner';
 
 const Index = () => {
   const { user, signOut, isAdmin } = useAuth();
-  const { conversations, createConversation } = useConversations();
+  const { conversations, createConversation, updateConversation } = useConversations();
+  const { sendMessage } = useNathiChat();
   const [searchParams] = useSearchParams();
   const [initialMessage, setInitialMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -37,15 +41,46 @@ const Index = () => {
     
     setIsLoading(true);
     try {
-      // Gera um título baseado na mensagem inicial (primeiras palavras)
+      // Gera um título baseado na mensagem inicial
       const title = initialMessage.trim().split(' ').slice(0, 5).join(' ') + (initialMessage.split(' ').length > 5 ? '...' : '');
+      
+      // Cria a conversa com a mensagem inicial
       const conversationId = await createConversation(title, initialMessage.trim());
+      
       if (conversationId) {
-        // A navegação será feita automaticamente pelo ChatLayout quando detectar a nova conversa
+        // Prepara as mensagens para enviar para a IA
+        const userMessage: Message = {
+          id: Date.now().toString(),
+          content: initialMessage.trim(),
+          sender: 'user',
+          timestamp: new Date()
+        };
+
+        // Envia mensagem para a Nathi IA
+        const aiResponse = await sendMessage([userMessage], conversationId);
+        
+        if (aiResponse) {
+          const aiMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            content: aiResponse,
+            sender: 'ai',
+            timestamp: new Date()
+          };
+
+          // Atualiza a conversa com a resposta da IA
+          await updateConversation(conversationId, {
+            messages: [userMessage, aiMessage],
+            lastMessage: aiResponse.substring(0, 100) + (aiResponse.length > 100 ? '...' : ''),
+            timestamp: new Date()
+          });
+        }
+
         setInitialMessage('');
+        toast.success('Conversa iniciada com a Nathi!');
       }
     } catch (error) {
       console.error('Erro ao criar conversa:', error);
+      toast.error('Erro ao iniciar conversa. Tente novamente.');
     } finally {
       setIsLoading(false);
     }
@@ -59,10 +94,10 @@ const Index = () => {
   };
 
   const quickActions = [
-    { icon: FileText, label: 'Resumir texto', action: () => setInitialMessage('Ajude-me a resumir um texto') },
-    { icon: BarChart3, label: 'Analisar dados', action: () => setInitialMessage('Preciso analisar alguns dados') },
-    { icon: PenTool, label: 'Ajudar a escrever', action: () => setInitialMessage('Ajude-me a escrever um texto') },
-    { icon: Sparkles, label: 'Surpreender', action: () => setInitialMessage('Me surpreenda com algo interessante') },
+    { icon: FileText, label: 'Criar e-book', action: () => setInitialMessage('Oi Nathi! Quero criar um e-book e não sei por onde começar') },
+    { icon: BarChart3, label: 'Curso online', action: () => setInitialMessage('Olá! Gostaria de criar um curso online mas tenho dúvidas') },
+    { icon: PenTool, label: 'Mentoria', action: () => setInitialMessage('Oi! Quero estruturar uma mentoria, pode me ajudar?') },
+    { icon: Sparkles, label: 'Marketing digital', action: () => setInitialMessage('Olá Nathi! Preciso de ajuda com estratégias de marketing digital') },
   ];
 
   // Se há conversas, mostra o layout com sidebar
