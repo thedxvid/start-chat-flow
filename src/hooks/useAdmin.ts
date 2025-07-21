@@ -103,71 +103,55 @@ export function useAdmin() {
     try {
       console.log('Criando usuário:', userData);
       
+      // Verificar se o email já existe no auth.users primeiro
+      const { data: existingUsers, error: checkError } = await supabase.auth.admin.listUsers();
+      
+      if (checkError) {
+        console.error('Erro ao verificar usuários existentes:', checkError);
+      } else if (existingUsers) {
+        const userExists = existingUsers.users.find((u: any) => u.email === userData.email);
+        if (userExists) {
+          throw new Error(`Email ${userData.email} já está registrado no sistema de autenticação`);
+        }
+      }
+      
       // Gerar senha temporária
       const tempPassword = 'TEMP-' + Math.random().toString(36).slice(-8).toUpperCase();
       
-      // Usar função corrigida v3 para criar registro administrativo primeiro
-      const { data, error } = await (supabase as any).rpc('create_admin_user_v3', {
-        user_email: userData.email,
-        user_full_name: userData.fullName,
-        user_role: userData.role || 'user',
-        plan_type: userData.planType || 'free'
+      console.log('Tentando criar usuário diretamente via Edge Function...');
+      
+      // Criar usuário diretamente via Edge Function
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-user-credentials', {
+        body: {
+          email: userData.email,
+          fullName: userData.fullName,
+          tempPassword: tempPassword,
+          role: userData.role || 'user',
+          planType: userData.planType || 'free'
+        }
       });
 
-      if (error) {
-        console.error('Erro RPC Supabase:', error);
-        throw new Error(`Erro na função do banco: ${error.message}`);
+      if (emailError) {
+        console.error('Erro detalhado da Edge Function:', emailError);
+        throw new Error(`Erro ao criar usuário: ${emailError.message || 'Erro desconhecido na função'}`);
       }
 
-      if (!data || !data.success) {
-        const errorMsg = data?.error || 'Falha ao criar usuário - resposta inválida';
-        console.error('Criação de usuário admin falhou:', data);
-        throw new Error(errorMsg);
+      if (!emailData || !emailData.success) {
+        const errorMsg = emailData?.error || 'Resposta inválida da função de criação';
+        console.error('Falha na Edge Function:', { emailData, errorMsg });
+        throw new Error(`Erro ao criar usuário: ${errorMsg}`);
       }
 
-      console.log('Registro administrativo criado com sucesso:', data);
-
-      // Agora criar o usuário real e enviar email usando a edge function
-      try {
-        console.log('Criando usuário no sistema e enviando credenciais...');
-        
-        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-user-credentials', {
-          body: {
-            email: userData.email,
-            fullName: userData.fullName,
-            tempPassword: tempPassword,
-            role: userData.role || 'user',
-            planType: userData.planType || 'free'
-          }
-        });
-
-        if (emailError) {
-          console.error('Erro detalhado da Edge Function:', emailError);
-          throw new Error(`Erro ao criar usuário: ${emailError.message || 'Erro desconhecido na função'}`);
-        }
-
-        if (!emailData || !emailData.success) {
-          const errorMsg = emailData?.error || 'Resposta inválida da função de criação';
-          console.error('Falha na Edge Function:', { emailData, errorMsg });
-          throw new Error(`Erro ao criar usuário: ${errorMsg}`);
-        }
-
-        console.log('Usuário criado e email enviado com sucesso:', emailData);
-        
-        // Atualizar lista de usuários
-        await fetchUsers();
-        
-        return {
-          success: true,
-          message: `Usuário criado com sucesso! As credenciais foram enviadas para ${userData.email}. A senha temporária é: ${tempPassword}`,
-          userId: emailData.userId
-        };
-      } catch (emailError) {
-        console.error('Erro ao criar usuário:', emailError);
-        // Garantir que sempre temos uma mensagem de erro legível
-        const errorMessage = emailError instanceof Error ? emailError.message : String(emailError);
-        throw new Error(`Falha ao criar usuário: ${errorMessage}`);
-      }
+      console.log('Usuário criado e email enviado com sucesso:', emailData);
+      
+      // Atualizar lista de usuários
+      await fetchUsers();
+      
+      return {
+        success: true,
+        message: `Usuário criado com sucesso! As credenciais foram enviadas para ${userData.email}. A senha temporária é: ${tempPassword}`,
+        userId: emailData.userId
+      };
     } catch (error) {
       console.error('Erro ao criar usuário:', error);
       throw error;
