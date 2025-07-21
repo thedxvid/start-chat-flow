@@ -331,6 +331,8 @@ export function useAdmin() {
         }
       });
 
+      console.log('📨 Resposta da limpeza:', { data, error });
+
       if (error) {
         console.error('❌ Erro na Edge Function de limpeza:', error);
         throw new Error(error.message);
@@ -352,7 +354,7 @@ export function useAdmin() {
       console.error('💥 Erro na limpeza de usuários incompletos:', error);
       return {
         success: false,
-        error: error.message
+        error: error.message || 'Erro desconhecido na limpeza'
       };
     }
   };
