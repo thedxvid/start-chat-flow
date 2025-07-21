@@ -1,9 +1,10 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuthSimple';
 import { useConversations } from '@/hooks/useConversations';
 import { useNathiChat } from '@/hooks/useNathiChat';
 import { useNavigate, useSearchParams } from 'react-router-dom';

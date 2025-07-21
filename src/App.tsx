@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import SimpleIndex from "./pages/SimpleIndex";
+import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
@@ -31,7 +31,7 @@ const App = () => (
                 path="/"
                 element={
                   <ProtectedRoute>
-                    <SimpleIndex />
+                    <Index />
                   </ProtectedRoute>
                 }
               />
@@ -39,7 +39,7 @@ const App = () => (
                 path="/dashboard"
                 element={
                   <ProtectedRoute>
-                    <SimpleIndex />
+                    <Index />
                   </ProtectedRoute>
                 }
               />
