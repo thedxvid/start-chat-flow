@@ -101,6 +101,9 @@ export function useAdmin() {
 
   const createUser = async (userData: CreateUserData) => {
     try {
+      // Gerar senha temporária
+      const tempPassword = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-2).toUpperCase();
+      
       // Usar nova função corrigida v3 - cast para any para contornar tipos
       const { data, error } = await (supabase as any).rpc('create_admin_user_v3', {
         user_email: userData.email,
@@ -120,16 +123,25 @@ export function useAdmin() {
         throw new Error(errorMsg);
       }
 
-      // Enviar email de boas-vindas se solicitado
-      if (userData.sendWelcomeEmail !== false) {
-        try {
-          const emailResult = await sendWelcomeEmail(userData.email, userData.fullName);
-          if (!emailResult.success) {
-            console.error('Erro ao enviar email de boas-vindas:', emailResult.error);
+      // Enviar email com credenciais
+      try {
+        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-user-credentials', {
+          body: {
+            email: userData.email,
+            fullName: userData.fullName,
+            tempPassword: tempPassword,
+            role: userData.role || 'user',
+            planType: userData.planType || 'free'
           }
-        } catch (emailError) {
-          console.error('Erro no envio de email:', emailError);
+        });
+
+        if (emailError) {
+          console.error('Erro ao enviar email com credenciais:', emailError);
+        } else {
+          console.log('Email com credenciais enviado com sucesso:', emailData);
         }
+      } catch (emailError) {
+        console.error('Erro ao invocar função de email:', emailError);
       }
 
       // Notificar admin sobre criação de usuário
@@ -148,7 +160,7 @@ export function useAdmin() {
       
       return { 
         success: true, 
-        message: data.message || 'Usuário criado com sucesso! Ele receberá instruções por email.'
+        message: `Usuário criado com sucesso! Credenciais enviadas para ${userData.email}. Senha temporária: ${tempPassword}`
       };
     } catch (error) {
       console.error('Error creating user:', error);
@@ -198,13 +210,17 @@ export function useAdmin() {
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 30);
 
-        // Insert or update subscription
+        // Insert or update subscription with all required fields
         await supabase
           .from('subscriptions')
           .upsert({
             user_id: userId,
+            customer_email: userEmail || '',
+            customer_name: '',
             plan_type: planType,
             status: 'active',
+            access_code: 'ADMIN-' + Math.random().toString(36).substring(2, 10).toUpperCase(),
+            kiwify_order_id: 'ADMIN-' + Math.random().toString(36).substring(2, 14).toUpperCase(),
             expires_at: expirationDate.toISOString()
           });
       }
