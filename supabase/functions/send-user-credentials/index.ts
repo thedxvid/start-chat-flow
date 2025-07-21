@@ -30,7 +30,7 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     const emailResponse = await resend.emails.send({
-      from: "Sistema <onboarding@resend.dev>",
+      from: "Sistema <noreply@sistemastart.com>",
       to: [email],
       subject: "Suas credenciais de acesso ao sistema",
       html: `
