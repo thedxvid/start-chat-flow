@@ -160,16 +160,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      create_user_admin_final: {
-        Args: {
-          user_email: string
-          user_password: string
-          user_full_name: string
-          user_role?: string
-          plan_type?: string
-        }
-        Returns: Json
-      }
       get_admin_users_final: {
         Args: Record<PropertyKey, never>
         Returns: {

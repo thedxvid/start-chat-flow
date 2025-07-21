@@ -121,33 +121,39 @@ export function useAdmin() {
 
       console.log('📨 Resposta da Edge Function:', { emailData, emailError });
 
+      // Verificar se houve erro na chamada da função
       if (emailError) {
-        console.error('❌ Erro detalhado da Edge Function:', {
-          message: emailError.message,
-          details: emailError.details,
-          hint: emailError.hint,
-          code: emailError.code
-        });
+        console.error('❌ Erro detalhado da Edge Function:', emailError);
         
-        // Tentar extrair informação mais útil do erro
-        let errorMessage = emailError.message || 'Erro desconhecido na função';
-        
-        if (emailError.message?.includes('Edge Function returned a non-2xx status code')) {
-          errorMessage = 'Erro interno no servidor. Verifique os logs da Edge Function para mais detalhes.';
+        // Tratamento específico para erro 409 (conflito - usuário já existe)
+        if (emailError.message?.includes('409') || emailError.message?.includes('Conflict')) {
+          throw new Error(`Email ${userData.email} já está registrado no sistema`);
         }
         
-        throw new Error(`Erro ao criar usuário: ${errorMessage}`);
+        throw new Error(`Erro ao criar usuário: ${emailError.message}`);
       }
 
+      // Verificar se a resposta existe
       if (!emailData) {
         console.error('❌ Resposta vazia da Edge Function');
         throw new Error('Resposta vazia da função de criação');
       }
 
+      // Verificar se houve erro na resposta da função
+      if (emailData.error) {
+        console.error('❌ Erro retornado pela Edge Function:', emailData.error);
+        
+        if (emailData.error.includes('já existe') || emailData.error.includes('already exists')) {
+          throw new Error(`Email ${userData.email} já está registrado no sistema`);
+        }
+        
+        throw new Error(emailData.error);
+      }
+
+      // Verificar se foi bem-sucedido
       if (!emailData.success) {
-        const errorMsg = emailData.error || 'Resposta inválida da função de criação';
-        console.error('❌ Falha na Edge Function:', { emailData, errorMsg });
-        throw new Error(`Erro ao criar usuário: ${errorMsg}`);
+        console.error('❌ Falha na Edge Function:', emailData);
+        throw new Error('Falha na criação do usuário');
       }
 
       console.log('✅ Usuário criado e email enviado com sucesso:', emailData);
@@ -157,9 +163,9 @@ export function useAdmin() {
       
       return {
         success: true,
-        message: emailData.emailError 
-          ? `Usuário criado com sucesso! Houve um problema no envio do email, mas as credenciais são: ${userData.email} / ${tempPassword}`
-          : `Usuário criado com sucesso! As credenciais foram enviadas para ${userData.email}. A senha temporária é: ${tempPassword}`,
+        message: emailData.warning 
+          ? `Usuário criado com sucesso! ${emailData.warning}. Credenciais: ${userData.email} / ${tempPassword}`
+          : `Usuário criado com sucesso! As credenciais foram enviadas para ${userData.email}`,
         userId: emailData.userId,
         tempPassword: tempPassword
       };

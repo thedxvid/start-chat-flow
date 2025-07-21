@@ -1,13 +1,15 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@4.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.52.0";
+import { Resend } from "npm:resend@2.0.0";
 
+// CORS headers
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Request interface
 interface SendCredentialsRequest {
   email: string;
   fullName: string;
@@ -16,89 +18,74 @@ interface SendCredentialsRequest {
   planType: string;
 }
 
-serve(async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log("🚀 Iniciando função send-user-credentials");
-
   try {
-    const requestBody = await req.json();
-    console.log("📝 Dados recebidos:", { 
-      email: requestBody.email, 
-      fullName: requestBody.fullName, 
-      role: requestBody.role, 
-      planType: requestBody.planType 
-    });
+    console.log("🚀 Iniciando criação de usuário...");
 
-    const { email, fullName, tempPassword, role, planType }: SendCredentialsRequest = requestBody;
+    // Parse request
+    const { email, fullName, tempPassword, role, planType }: SendCredentialsRequest = await req.json();
 
+    // Validate required fields
     if (!email || !fullName || !tempPassword) {
-      console.error("❌ Dados obrigatórios faltando:", { email: !!email, fullName: !!fullName, tempPassword: !!tempPassword });
-      throw new Error("Dados obrigatórios não fornecidos");
+      return new Response(
+        JSON.stringify({ error: 'Email, nome completo e senha são obrigatórios' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Validar variáveis de ambiente
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    const siteUrl = Deno.env.get("SITE_URL");
+    // Validate environment variables
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    const siteUrl = Deno.env.get('SITE_URL');
 
-    console.log("🔍 Verificando variáveis de ambiente:", {
-      hasSupabaseUrl: !!supabaseUrl,
-      hasServiceKey: !!supabaseServiceKey,
-      hasResendKey: !!resendApiKey,
-      hasSiteUrl: !!siteUrl,
-      supabaseUrl: supabaseUrl ? supabaseUrl.substring(0, 20) + "..." : "undefined"
+    if (!supabaseUrl || !supabaseServiceKey || !resendApiKey || !siteUrl) {
+      console.error("❌ Variáveis de ambiente faltando");
+      return new Response(
+        JSON.stringify({ error: 'Configuração do servidor incompleta' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create Supabase admin client
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("❌ Variáveis críticas do Supabase faltando");
-      throw new Error("Configuração do Supabase incompleta");
-    }
+    console.log("🔍 Verificando se usuário já existe...");
 
-    if (!resendApiKey) {
-      console.error("❌ RESEND_API_KEY não configurada");
-      throw new Error("Configuração do Resend incompleta");
-    }
-
-    // Criar cliente Supabase com privilégios de service role
-    console.log("🔧 Criando cliente Supabase...");
-    const supabaseAdmin = createClient(
-      supabaseUrl,
-      supabaseServiceKey,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
-
-    console.log("👤 Verificando se usuário já existe no auth.users...");
-    const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    // Check if user already exists
+    const { data: existingUser, error: checkError } = await supabaseAdmin.auth.admin.listUsers();
     
-    if (listError) {
-      console.error("❌ Erro ao listar usuários:", listError);
-      throw new Error(`Erro ao verificar usuários existentes: ${listError.message}`);
+    if (checkError) {
+      console.error("❌ Erro ao verificar usuários existentes:", checkError);
+      return new Response(
+        JSON.stringify({ error: 'Erro ao verificar usuários existentes' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    const userExists = existingUsers?.users?.find((u: any) => u.email === email);
+    const userExists = existingUser.users.some(user => user.email === email);
+    
     if (userExists) {
-      console.error("❌ Usuário já existe:", email);
-      throw new Error(`Email ${email} já está registrado no sistema`);
+      console.log("⚠️ Usuário já existe:", email);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Usuário já existe com este email',
+          suggestion: 'Use a função de redefinir senha ou escolha outro email'
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log("✅ Email disponível, criando usuário usando função SQL...");
+    console.log("✅ Email disponível, criando usuário...");
 
-    // Gerar ID e código de acesso
-    const newUserId = crypto.randomUUID();
-    const accessCode = 'START-' + Math.random().toString(36).substr(2, 8).toUpperCase();
-
-    // Criar usuário no auth
-    console.log("✅ Criando usuário no sistema de autenticação...");
+    // Create user in auth
     const { data: authData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: tempPassword,
@@ -109,39 +96,46 @@ serve(async (req: Request): Promise<Response> => {
     });
 
     if (createUserError) {
-      console.error("❌ Erro ao criar usuário no auth:", createUserError);
-      throw new Error(`Erro ao criar conta no sistema de autenticação: ${createUserError.message}`);
+      console.error("❌ Erro ao criar usuário:", createUserError);
+      return new Response(
+        JSON.stringify({ error: `Erro ao criar usuário: ${createUserError.message}` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     if (!authData.user) {
-      console.error("❌ Usuário não foi criado no sistema de autenticação");
-      throw new Error("Falha ao criar usuário - dados de autenticação não retornados");
+      console.error("❌ Usuário não foi criado");
+      return new Response(
+        JSON.stringify({ error: 'Falha ao criar usuário' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log("✅ Usuário criado no auth:", authData.user.id);
-
-    // Criar registros relacionados usando o user_id real
     const userId = authData.user.id;
+    console.log("✅ Usuário criado no auth:", userId);
 
-    // Criar/atualizar profile
+    // Generate access code for subscription
+    const accessCode = 'START-' + Math.random().toString(36).substr(2, 8).toUpperCase();
+
+    // Create user profile (the trigger will also create one, but this ensures it has admin data)
     console.log("📝 Criando profile do usuário...");
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .upsert({
         user_id: userId,
         full_name: fullName,
-        is_admin_created: false,
+        is_admin_created: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       });
 
     if (profileError) {
-      console.error("❌ Erro ao criar profile:", profileError);
+      console.error("⚠️ Erro ao criar profile (não crítico):", profileError);
     } else {
-      console.log("✅ Profile criado com sucesso");
+      console.log("✅ Profile criado");
     }
 
-    // Criar role do usuário
+    // Create user role
     console.log("👤 Criando role do usuário...");
     const { error: roleError } = await supabaseAdmin
       .from('user_roles')
@@ -153,12 +147,12 @@ serve(async (req: Request): Promise<Response> => {
       });
 
     if (roleError) {
-      console.error("❌ Erro ao criar role:", roleError);
+      console.error("⚠️ Erro ao criar role (não crítico):", roleError);
     } else {
-      console.log("✅ Role criada com sucesso");
+      console.log("✅ Role criada");
     }
 
-    // Criar subscription
+    // Create subscription
     console.log("💳 Criando subscription...");
     const { error: subscriptionError } = await supabaseAdmin
       .from('subscriptions')
@@ -176,133 +170,98 @@ serve(async (req: Request): Promise<Response> => {
       });
 
     if (subscriptionError) {
-      console.error("❌ Erro ao criar subscription:", subscriptionError);
+      console.error("⚠️ Erro ao criar subscription (não crítico):", subscriptionError);
     } else {
-      console.log("✅ Subscription criada com sucesso");
+      console.log("✅ Subscription criada");
     }
 
-    console.log("✅ Usuário e registros relacionados criados automaticamente pela função SQL");
-
-    // Inicializar Resend com verificação
-    console.log("📧 Inicializando Resend...");
-    let resend;
-    try {
-      resend = new Resend(resendApiKey);
-      console.log("✅ Resend inicializado com sucesso");
-    } catch (resendInitError) {
-      console.error("❌ Erro ao inicializar Resend:", resendInitError);
-      throw new Error(`Erro ao inicializar serviço de email: ${resendInitError.message}`);
-    }
-
-    // Enviar email com as credenciais
-    console.log("📤 Enviando email para:", email);
+    // Send email with credentials
+    console.log("📧 Enviando email com credenciais...");
+    const resend = new Resend(resendApiKey);
     
-    try {
-      const emailResponse = await resend.emails.send({
-        from: "Sistema <onboarding@resend.dev>",
-        to: [email],
-        subject: "Suas credenciais de acesso ao sistema",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h1 style="color: #333; text-align: center;">Bem-vindo ao sistema!</h1>
+    const emailResponse = await resend.emails.send({
+      from: 'Sistema Start <noreply@sistemastart.com>',
+      to: [email],
+      subject: '🎉 Bem-vindo ao Sistema Start - Suas Credenciais de Acesso',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; text-align: center;">
+            <h1 style="margin: 0; font-size: 28px;">🎉 Bem-vindo ao Sistema Start!</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Sua conta foi criada com sucesso</p>
+          </div>
+          
+          <div style="background: #f8f9fa; padding: 30px; border-radius: 10px; margin: 20px 0;">
+            <h2 style="color: #333; margin-top: 0;">👋 Olá, ${fullName}!</h2>
+            <p style="color: #666; line-height: 1.6;">
+              Sua conta no Sistema Start foi criada com sucesso! Aqui estão suas credenciais de acesso:
+            </p>
             
-            <p>Olá <strong>${fullName}</strong>,</p>
-            
-            <p>Uma conta foi criada para você no nosso sistema. Aqui estão suas credenciais de acesso:</p>
-            
-            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p><strong>Email:</strong> ${email}</p>
-              <p><strong>Senha temporária:</strong> <code style="background-color: #e0e0e0; padding: 4px 8px; border-radius: 4px;">${tempPassword}</code></p>
-              <p><strong>Função:</strong> ${role === 'admin' ? 'Administrador' : 'Usuário'}</p>
-              <p><strong>Plano:</strong> ${planType === 'free' ? 'Gratuito' : planType === 'premium' ? 'Premium' : 'Pro'}</p>
-            </div>
-            
-            <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
-              <h3 style="color: #856404; margin-top: 0;">⚠️ Importante:</h3>
-              <p style="color: #856404; margin-bottom: 0;">
-                Por segurança, altere sua senha no primeiro acesso ao sistema. 
-                Você pode fazer login imediatamente com essas credenciais.
-              </p>
+            <div style="background: white; padding: 20px; border-radius: 8px; border: 2px solid #e9ecef; margin: 20px 0;">
+              <h3 style="color: #333; margin-top: 0;">🔐 Suas Credenciais:</h3>
+              <p><strong>📧 Email:</strong> ${email}</p>
+              <p><strong>🔑 Senha Temporária:</strong> <code style="background: #f1f3f4; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${tempPassword}</code></p>
+              <p><strong>🎯 Plano:</strong> ${planType || 'Premium'}</p>
+              <p><strong>🎫 Código de Acesso:</strong> <code style="background: #f1f3f4; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${accessCode}</code></p>
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${siteUrl || "https://your-domain.com"}/auth" 
-                 style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                Acessar o Sistema
+              <a href="${siteUrl}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+                🚀 Acessar Sistema Start
               </a>
             </div>
             
-            <p style="color: #666; font-size: 14px; text-align: center; margin-top: 30px;">
-              Se você não esperava receber este email, entre em contato conosco.
-            </p>
+            <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <h4 style="color: #856404; margin-top: 0;">⚠️ Importante:</h4>
+              <ul style="color: #856404; margin: 0;">
+                <li>Esta é uma senha temporária. Recomendamos alterá-la no primeiro acesso.</li>
+                <li>Guarde bem suas credenciais em local seguro.</li>
+                <li>Se tiver dúvidas, entre em contato com nosso suporte.</li>
+              </ul>
+            </div>
           </div>
-        `,
-      });
-
-      if (emailResponse.error) {
-        console.error("❌ Erro do Resend:", emailResponse.error);
-        throw new Error(`Erro ao enviar email: ${emailResponse.error.message}`);
-      }
-
-      console.log("✅ Email enviado com sucesso:", emailResponse.data?.id);
-
-      const successResponse = {
-        success: true,
-        messageId: emailResponse.data?.id,
-        userId: authData.user.id,
-        message: "Usuário criado e email enviado com sucesso",
-        tempPassword: tempPassword // Incluir para debug
-      };
-
-      console.log("🎉 Processo concluído com sucesso:", successResponse);
-
-      return new Response(JSON.stringify(successResponse), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          ...corsHeaders,
-        },
-      });
-
-    } catch (emailError: any) {
-      console.error("❌ Erro específico no envio de email:", emailError);
-      
-      // Mesmo se o email falhar, o usuário foi criado
-      return new Response(JSON.stringify({
-        success: true,
-        userId: authData.user.id,
-        message: "Usuário criado com sucesso, mas houve erro no envio do email",
-        emailError: emailError.message,
-        tempPassword: tempPassword
-      }), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          ...corsHeaders,
-        },
-      });
-    }
-
-  } catch (error: any) {
-    console.error("💥 Erro geral na função:", {
-      name: error.name,
-      message: error.message,
-      stack: error.stack?.split('\n').slice(0, 5).join('\n')
+          
+          <div style="text-align: center; color: #666; font-size: 14px; margin-top: 30px;">
+            <p>📧 Este email foi enviado automaticamente pelo Sistema Start</p>
+            <p>Se você não esperava este email, pode ignorá-lo com segurança.</p>
+          </div>
+        </div>
+      `,
     });
 
+    if (emailResponse.error) {
+      console.error("⚠️ Erro ao enviar email (usuário criado com sucesso):", emailResponse.error);
+      // Usuário foi criado, mas email falhou
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Usuário criado com sucesso, mas falha no envio do email',
+          userId: userId,
+          warning: 'Email não enviado - verifique as credenciais manualmente'
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log("✅ Email enviado com sucesso:", emailResponse.data?.id);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Usuário criado e email enviado com sucesso',
+        userId: userId,
+        emailId: emailResponse.data?.id
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error("💥 Erro não tratado:", error);
     return new Response(
       JSON.stringify({ 
-        success: false, 
-        error: error.message,
-        timestamp: new Date().toISOString()
+        error: 'Erro interno no servidor',
+        details: error.message 
       }),
-      {
-        status: 500,
-        headers: { 
-          "Content-Type": "application/json", 
-          ...corsHeaders 
-        },
-      }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
