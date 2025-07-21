@@ -1,0 +1,39 @@
+RewriteEngine On
+
+# Force MIME types
+<FilesMatch "\.css$">
+    ForceType text/css
+    Header set Content-Type "text/css"
+</FilesMatch>
+
+<FilesMatch "\.js$">
+    ForceType application/javascript
+    Header set Content-Type "application/javascript"
+</FilesMatch>
+
+<FilesMatch "\.json$">
+    ForceType application/json
+    Header set Content-Type "application/json"
+</FilesMatch>
+
+# Cache assets
+<FilesMatch "\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$">
+    ExpiresActive On
+    ExpiresDefault "access plus 1 year"
+</FilesMatch>
+
+# Security headers
+Header always set X-Content-Type-Options nosniff
+Header always set X-Frame-Options DENY
+Header always set X-XSS-Protection "1; mode=block"
+
+# CORS headers (if needed)
+Header always set Access-Control-Allow-Origin "*"
+Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
+
+# SPA fallback - deve ser a última regra
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/assets/
+RewriteRule ^ index.html [L]

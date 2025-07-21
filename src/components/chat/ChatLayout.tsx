@@ -20,7 +20,7 @@ export function ChatLayout() {
   } = useConversations();
   const { sendMessage, isLoading } = useNathiChat();
   const [activeConversationId, setActiveConversationId] = useState<string>();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Fechado por padrão no mobile
 
   // Set first conversation as active when conversations load
   useEffect(() => {
@@ -28,6 +28,21 @@ export function ChatLayout() {
       setActiveConversationId(conversations[0].id);
     }
   }, [conversations, activeConversationId]);
+
+  // Auto-open sidebar on desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsSidebarOpen(true);
+      } else {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleNewChat = () => {
     // Navega para a tela inicial forçando mostrar a interface de nova conversa
@@ -146,22 +161,15 @@ export function ChatLayout() {
   const activeConversation = conversations.find(conv => conv.id === activeConversationId);
 
   return (
-    <div className="h-screen flex bg-background overflow-hidden">
-      {/* Mobile menu button */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="md:hidden fixed top-4 left-4 z-50 bg-card/90 backdrop-blur-sm shadow-lg border"
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-      >
-        {isSidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-      </Button>
-
+    <div className="h-screen flex bg-background overflow-hidden relative">
       {/* Sidebar */}
       <div className={`
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0 transition-transform duration-300 ease-in-out
-        w-80 md:w-96 flex-shrink-0 relative z-40 h-full
+        fixed md:relative top-0 left-0 h-full z-40
+        w-72 sm:w-80 md:w-96 flex-shrink-0
+        bg-background md:bg-transparent
+        shadow-2xl md:shadow-none
       `}>
         <ChatSidebar
           conversations={conversations}
@@ -178,7 +186,7 @@ export function ChatLayout() {
       {/* Mobile overlay */}
       {isSidebarOpen && (
         <div 
-          className="md:hidden fixed inset-0 bg-black/20 z-30 backdrop-blur-sm"
+          className="md:hidden fixed inset-0 bg-black/50 z-30 backdrop-blur-sm"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
@@ -190,6 +198,8 @@ export function ChatLayout() {
           messages={activeConversation?.messages || []}
           onSendMessage={handleSendMessage}
           isTyping={isLoading}
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         />
       </div>
     </div>

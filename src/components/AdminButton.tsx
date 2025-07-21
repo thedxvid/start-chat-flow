@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuthSimple';
 import { useNavigate } from 'react-router-dom';
 import { Shield, RefreshCw, Crown } from 'lucide-react';
 import { toast } from 'sonner';

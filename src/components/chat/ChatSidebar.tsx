@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, MessageCircle, Clock, Calendar, Star, LogOut, Search, Shield, Crown } from 'lucide-react';
 import type { Conversation } from '@/types/chat';
 
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuthSimple';
 
 interface ChatSidebarProps {
   conversations: Conversation[];

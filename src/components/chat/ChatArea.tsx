@@ -4,7 +4,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Bot, User, Loader2, Sparkles } from 'lucide-react';
+import { Send, Bot, User, Loader2, Sparkles, Menu, X } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -18,13 +18,17 @@ interface ChatAreaProps {
   messages: Message[];
   onSendMessage: (content: string) => void;
   isTyping?: boolean;
+  isSidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 export function ChatArea({ 
   conversationId, 
   messages, 
   onSendMessage, 
-  isTyping = false 
+  isTyping = false,
+  isSidebarOpen = false,
+  onToggleSidebar
 }: ChatAreaProps) {
   const [inputValue, setInputValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -138,9 +142,21 @@ export function ChatArea({
   return (
     <div className="flex flex-col h-full bg-gradient-to-br from-background via-background/95 to-muted/20">
       {/* Header */}
-      <div className="p-4 border-b border-border/50 bg-card/50 backdrop-blur-sm">
+      <div className="p-3 sm:p-4 border-b border-border/50 bg-card/50 backdrop-blur-sm">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-primary flex items-center justify-center shadow-lg">
+          {/* Mobile menu button - integrado no header */}
+          {onToggleSidebar && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="md:hidden p-2 h-8 w-8 rounded-lg hover:bg-muted/50"
+              onClick={onToggleSidebar}
+            >
+              {isSidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            </Button>
+          )}
+          
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-gradient-primary flex items-center justify-center shadow-lg">
             <img 
               src="/lovable-uploads/2004ae96-8379-47a2-9892-02c1385bf95c.png" 
               alt="Mentora Expert" 
@@ -152,10 +168,10 @@ export function ChatArea({
             />
           </div>
           <div className="flex-1">
-            <h2 className="font-semibold text-foreground">Nathi - Mentora Expert</h2>
+            <h2 className="font-semibold text-foreground text-sm sm:text-base">Nathi - Mentora Expert</h2>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 {isTyping ? 'Digitando...' : 'Online agora'}
               </p>
             </div>
@@ -163,18 +179,18 @@ export function ChatArea({
           {isTyping && (
             <div className="flex items-center gap-2 text-primary">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm font-medium">Pensando...</span>
+              <span className="text-xs sm:text-sm font-medium hidden sm:block">Pensando...</span>
             </div>
           )}
         </div>
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <ScrollArea className="flex-1 p-3 sm:p-4">
+        <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
           {Object.entries(groupedMessages).map(([date, dayMessages]) => (
             <div key={date}>
-              <div className="flex items-center gap-3 my-6">
+              <div className="flex items-center gap-3 my-4 sm:my-6">
                 <Separator className="flex-1" />
                 <Badge variant="outline" className="text-xs text-muted-foreground bg-background/80">
                   {date}
@@ -190,17 +206,17 @@ export function ChatArea({
                   return (
                     <div
                       key={message.id}
-                      className={`flex gap-3 ${message.sender === 'user' ? 'flex-row-reverse' : ''} ${!isFirst ? 'mt-1' : ''}`}
+                      className={`flex gap-2 sm:gap-3 ${message.sender === 'user' ? 'flex-row-reverse' : ''} ${!isFirst ? 'mt-1' : ''}`}
                     >
                       {/* Avatar */}
                       {isFirst && (
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-md ${
+                        <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-md ${
                           message.sender === 'user' 
                             ? 'bg-gradient-to-br from-primary to-primary/80 text-white' 
                             : 'bg-gradient-primary overflow-hidden'
                         }`}>
                           {message.sender === 'user' ? (
-                            <User className="h-4 w-4" />
+                            <User className="h-3 w-3 sm:h-4 sm:w-4" />
                           ) : (
                             <img 
                               src="/lovable-uploads/6e7516e8-25b6-4f1e-8ceb-de974ccd23d8.png" 
@@ -208,18 +224,18 @@ export function ChatArea({
                               className="w-full h-full object-cover"
                               onError={(e) => {
                                 e.currentTarget.style.display = 'none';
-                                e.currentTarget.parentElement!.innerHTML = '<Bot class="h-4 w-4 text-white" />';
+                                e.currentTarget.parentElement!.innerHTML = '<Bot class="h-3 w-3 sm:h-4 sm:w-4 text-white" />';
                               }}
                             />
                           )}
                         </div>
                       )}
-                      {!isFirst && <div className="w-8" />}
+                      {!isFirst && <div className="w-6 sm:w-8" />}
 
                       {/* Message Bubble */}
-                      <div className={`max-w-[75%] ${message.sender === 'user' ? 'text-right' : ''}`}>
+                      <div className={`max-w-[80%] sm:max-w-[75%] ${message.sender === 'user' ? 'text-right' : ''}`}>
                         <div
-                          className={`inline-block p-4 rounded-2xl shadow-lg transition-all hover:shadow-xl ${
+                          className={`inline-block p-3 sm:p-4 rounded-2xl shadow-lg transition-all hover:shadow-xl ${
                             message.sender === 'user'
                               ? 'bg-gradient-to-br from-primary to-primary/90 text-white rounded-br-md'
                               : 'bg-card border border-border/50 text-foreground rounded-bl-md'
@@ -230,7 +246,7 @@ export function ChatArea({
                           </p>
                         </div>
                         {isLast && (
-                          <p className={`text-xs text-muted-foreground mt-2 ${
+                          <p className={`text-xs text-muted-foreground mt-1 sm:mt-2 ${
                             message.sender === 'user' ? 'text-right' : 'text-left'
                           }`}>
                             {formatTimestamp(message.timestamp)}
@@ -273,9 +289,9 @@ export function ChatArea({
       </ScrollArea>
 
       {/* Input */}
-      <div className="p-4 border-t border-border/50 bg-card/50 backdrop-blur-sm">
+      <div className="p-3 sm:p-4 border-t border-border/50 bg-card/50 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto">
-          <div className="flex gap-3 items-end">
+          <div className="flex gap-2 sm:gap-3 items-end">
             <div className="flex-1 relative">
               <Textarea
                 ref={textareaRef}
@@ -283,7 +299,7 @@ export function ChatArea({
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder="Converse com a Nathi sobre seus projetos..."
-                className="w-full p-4 text-sm border border-border/50 rounded-2xl bg-background/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 resize-none min-h-[52px] max-h-[120px] shadow-sm transition-all"
+                className="w-full p-3 sm:p-4 text-sm border border-border/50 rounded-2xl bg-background/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 resize-none min-h-[48px] sm:min-h-[52px] max-h-[120px] shadow-sm transition-all"
                 rows={1}
                 disabled={isTyping}
               />
@@ -297,20 +313,22 @@ export function ChatArea({
               onClick={handleSend}
               size="sm"
               disabled={!inputValue.trim() || isTyping}
-              className="bg-gradient-primary hover:bg-primary-hover text-white shadow-lg min-w-[52px] h-[52px] rounded-2xl transition-all hover:scale-105 disabled:hover:scale-100"
+              className="bg-gradient-primary hover:bg-primary-hover text-white shadow-lg min-w-[48px] sm:min-w-[52px] h-[48px] sm:h-[52px] rounded-2xl transition-all hover:scale-105 disabled:hover:scale-100"
             >
               {isTyping ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
               ) : (
-                <Send className="h-5 w-5" />
+                <Send className="h-4 w-4 sm:h-5 sm:w-5" />
               )}
             </Button>
           </div>
-          <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
-            <span>Enter para enviar • Shift + Enter para nova linha</span>
+          <div className="flex items-center justify-between mt-2 sm:mt-3 text-xs text-muted-foreground">
+            <span className="hidden sm:block">Enter para enviar • Shift + Enter para nova linha</span>
+            <span className="sm:hidden">Enter para enviar</span>
             <span className="flex items-center gap-1">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              Conectado
+              <span className="hidden sm:inline">Conectado</span>
+              <span className="sm:hidden">Online</span>
             </span>
           </div>
         </div>

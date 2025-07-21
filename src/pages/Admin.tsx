@@ -30,8 +30,7 @@ import {
   Activity,
   BarChart3,
   UserPlus,
-  Eye,
-  EyeOff,
+
   ArrowLeft,
   Home
 } from 'lucide-react';
@@ -55,12 +54,11 @@ export function Admin() {
   const [makingAdmin, setMakingAdmin] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
   const [showCreateUserDialog, setShowCreateUserDialog] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+
   
   // Form state for creating new user
   const [newUserData, setNewUserData] = useState({
     email: '',
-    password: '',
     fullName: '',
     role: 'user' as 'user' | 'admin',
     planType: 'free' as 'free' | 'premium' | 'pro'
@@ -112,7 +110,7 @@ export function Admin() {
   };
 
   const handleCreateUser = async () => {
-    if (!newUserData.email || !newUserData.password || !newUserData.fullName) {
+    if (!newUserData.email || !newUserData.fullName) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
@@ -124,7 +122,6 @@ export function Admin() {
       toast.success("Usuário criado com sucesso!");
       setNewUserData({
         email: '',
-        password: '',
         fullName: '',
         role: 'user',
         planType: 'free'
@@ -343,51 +340,31 @@ export function Admin() {
                             onChange={(e) => setNewUserData(prev => ({ ...prev, fullName: e.target.value }))}
                           />
                         </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="password">Senha</Label>
-                          <div className="relative">
-                            <Input
-                              id="password"
-                              type={showPassword ? "text" : "password"}
-                              placeholder="Senha temporária"
-                              value={newUserData.password}
-                              onChange={(e) => setNewUserData(prev => ({ ...prev, password: e.target.value }))}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                              onClick={() => setShowPassword(!showPassword)}
-                            >
-                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </Button>
-                          </div>
-                        </div>
+
                         <div className="grid gap-2">
                           <Label htmlFor="role">Função</Label>
-                          <Select value={newUserData.role} onValueChange={(value: 'user' | 'admin') => setNewUserData(prev => ({ ...prev, role: value }))}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="user">Usuário</SelectItem>
-                              <SelectItem value="admin">Administrador</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <select
+                            id="role"
+                            value={newUserData.role}
+                            onChange={(e) => setNewUserData(prev => ({ ...prev, role: e.target.value as 'user' | 'admin' }))}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <option value="user">Usuário</option>
+                            <option value="admin">Administrador</option>
+                          </select>
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="planType">Plano</Label>
-                          <Select value={newUserData.planType} onValueChange={(value: 'free' | 'premium' | 'pro') => setNewUserData(prev => ({ ...prev, planType: value }))}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="free">Gratuito</SelectItem>
-                              <SelectItem value="premium">Premium</SelectItem>
-                              <SelectItem value="pro">Pro</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <select
+                            id="planType"
+                            value={newUserData.planType}
+                            onChange={(e) => setNewUserData(prev => ({ ...prev, planType: e.target.value as 'free' | 'premium' | 'pro' }))}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <option value="free">Gratuito</option>
+                            <option value="premium">Premium</option>
+                            <option value="pro">Pro</option>
+                          </select>
                         </div>
                       </div>
                       <DialogFooter>
@@ -467,19 +444,15 @@ export function Admin() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <Select
+                              <select
                                 value={user.subscription?.status || 'inactive'}
-                                onValueChange={(value) => handleUpdateSubscription(user.id, user.subscription?.plan_type || 'premium', value)}
+                                onChange={(e) => handleUpdateSubscription(user.id, user.subscription?.plan_type || 'premium', e.target.value)}
+                                className="w-24 h-8 text-xs rounded-md border border-input bg-background px-2 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                               >
-                                <SelectTrigger className="w-24 h-8">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="active">Ativo</SelectItem>
-                                  <SelectItem value="inactive">Inativo</SelectItem>
-                                  <SelectItem value="pending">Pendente</SelectItem>
-                                </SelectContent>
-                              </Select>
+                                <option value="active">Ativo</option>
+                                <option value="inactive">Inativo</option>
+                                <option value="pending">Pendente</option>
+                              </select>
                               
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>

@@ -1,6 +1,6 @@
 
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuthSimple';
 import { Crown } from 'lucide-react';
 
 export function SubscriptionStatus() {

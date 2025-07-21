@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuthSimple';
 import { sendWelcomeEmail, sendAdminNotification } from '@/lib/resend';
 
 interface UserWithProfile {
@@ -28,7 +28,6 @@ interface UserWithProfile {
 
 interface CreateUserData {
   email: string;
-  password: string;
   fullName: string;
   role?: 'user' | 'admin';
   planType?: 'free' | 'premium' | 'pro';
@@ -102,21 +101,23 @@ export function useAdmin() {
 
   const createUser = async (userData: CreateUserData) => {
     try {
-      // Usar função RPC em vez de auth.admin (que requer service_role)
-      const { data, error } = await supabase.rpc('create_admin_user', {
+      // Usar nova função corrigida v3
+      const { data, error } = await supabase.rpc('create_admin_user_v3', {
         user_email: userData.email,
-        user_password: userData.password,
         user_full_name: userData.fullName,
         user_role: userData.role || 'user',
         plan_type: userData.planType || 'free'
       });
 
       if (error) {
-        throw error;
+        console.error('Supabase RPC error:', error);
+        throw new Error(`Erro na função do banco: ${error.message}`);
       }
 
-      if (!data.success) {
-        throw new Error(data.error || 'Falha ao criar usuário');
+      if (!data || !data.success) {
+        const errorMsg = data?.error || 'Falha ao criar usuário - resposta inválida';
+        console.error('Admin user creation failed:', data);
+        throw new Error(errorMsg);
       }
 
       // Enviar email de boas-vindas se solicitado
@@ -229,27 +230,12 @@ export function useAdmin() {
 
   const fetchUsers = async () => {
     try {
-      // Get users from auth
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      // Usar nova função RPC corrigida v3
+      const { data: adminUsers, error } = await supabase.rpc('get_admin_users_v3');
       
-      if (authError) {
-        throw authError;
+      if (error) {
+        throw error;
       }
-
-      // Get profiles
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('*');
-
-      // Get subscriptions
-      const { data: subscriptions } = await supabase
-        .from('subscriptions')
-        .select('*');
-
-      // Get user roles
-      const { data: userRoles } = await supabase
-        .from('user_roles')
-        .select('*');
 
       // Get token usage stats
       const { data: tokenStats } = await supabase
@@ -261,14 +247,10 @@ export function useAdmin() {
           created_at
         `);
 
-      // Combine data
-      const usersWithData = authUsers.users.map(authUser => {
-        const profile = profiles?.find(p => p.user_id === authUser.id);
-        const subscription = subscriptions?.find(s => s.user_id === authUser.id);
-        const role = userRoles?.find(r => r.user_id === authUser.id);
-        
+      // Process data from RPC function
+      const usersWithData = (adminUsers || []).map((userData: any) => {
         // Calculate token stats for this user
-        const userTokens = tokenStats?.filter(t => t.user_id === authUser.id) || [];
+        const userTokens = tokenStats?.filter(t => t.user_id === userData.user_id) || [];
         const totalTokens = userTokens.reduce((sum, t) => sum + (t.tokens_used || 0), 0);
         const totalCost = userTokens.reduce((sum, t) => sum + (t.cost || 0), 0);
         const conversationCount = userTokens.length;
@@ -277,19 +259,19 @@ export function useAdmin() {
           Math.max(...userTokens.map(t => new Date(t.created_at).getTime())) : null;
 
         return {
-          id: authUser.id,
-          email: authUser.email || '',
-          created_at: authUser.created_at,
-          profile: profile ? {
-            full_name: profile.full_name || '',
-            avatar_url: profile.avatar_url
-          } : undefined,
-          subscription: subscription ? {
-            status: subscription.status,
-            plan_type: subscription.plan_type,
-            expires_at: subscription.expires_at
-          } : undefined,
-          role: role?.role || 'user',
+          id: userData.user_id,
+          email: userData.email || '',
+          created_at: userData.created_at,
+          profile: {
+            full_name: userData.full_name || '',
+            avatar_url: null
+          },
+          subscription: {
+            status: userData.status || 'inactive',
+            plan_type: userData.plan_type || 'free',
+            expires_at: null
+          },
+          role: userData.role || 'user',
           tokenStats: {
             total_tokens: totalTokens,
             total_cost: totalCost,

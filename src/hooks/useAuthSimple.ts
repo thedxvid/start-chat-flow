@@ -1,9 +1,6 @@
-
 import { useState, useEffect, createContext, useContext } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { sendWelcomeEmail, sendAdminNotification } from '@/lib/resend';
 
 interface AuthContextType {
   user: User | null;
@@ -34,7 +31,6 @@ export const useAuthProvider = () => {
   const [loading, setLoading] = useState(true);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const { toast } = useToast();
 
   // Admin users have access regardless of subscription
   // Regular users need subscription
@@ -44,6 +40,7 @@ export const useAuthProvider = () => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -52,7 +49,7 @@ export const useAuthProvider = () => {
           setTimeout(async () => {
             await checkSubscriptionStatus(session.user.id);
             await checkAdminStatus(session.user.id);
-          }, 0);
+          }, 100);
         } else {
           setIsSubscribed(false);
           setIsAdmin(false);
@@ -64,6 +61,7 @@ export const useAuthProvider = () => {
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -71,7 +69,7 @@ export const useAuthProvider = () => {
         setTimeout(async () => {
           await checkSubscriptionStatus(session.user.id);
           await checkAdminStatus(session.user.id);
-        }, 0);
+        }, 100);
       }
       
       setLoading(false);
@@ -82,6 +80,8 @@ export const useAuthProvider = () => {
 
   const checkSubscriptionStatus = async (userId: string) => {
     try {
+      console.log('Checking subscription for user:', userId);
+      
       const { data, error } = await supabase
         .from('subscriptions')
         .select('status, plan_type, expires_at')
@@ -90,9 +90,9 @@ export const useAuthProvider = () => {
         .maybeSingle();
 
       if (error) {
-        // ✅ CORREÇÃO: Se tabela não existe ou estrutura incorreta, assumir acesso liberado para desenvolvimento
+        // Se tabela não existe ou estrutura incorreta, assumir acesso liberado para desenvolvimento
         if (error.code === 'PGRST106' || error.code === '42P01' || error.code === '42703' || error.details?.includes('does not exist')) {
-          console.warn('Tabela subscriptions não encontrada ou com estrutura incorreta, liberando acesso para desenvolvimento');
+          console.warn('Tabela subscriptions não encontrada, liberando acesso para desenvolvimento');
           setIsSubscribed(true);
           return;
         }
@@ -106,13 +106,15 @@ export const useAuthProvider = () => {
         // Check if subscription is still valid
         const isValid = !data.expires_at || new Date(data.expires_at) > new Date();
         setIsSubscribed(isValid && data.plan_type !== 'free');
+        console.log('Subscription status:', { isValid, plan_type: data.plan_type });
       } else {
         // Se não há dados de subscription, liberar acesso temporário
         setIsSubscribed(true);
+        console.log('No subscription data, granting temporary access');
       }
     } catch (error) {
       console.error('Error in checkSubscriptionStatus:', error);
-      // ✅ CORREÇÃO: Em caso de erro, liberar acesso para desenvolvimento
+      // Em caso de erro, liberar acesso para desenvolvimento
       setIsSubscribed(true);
     }
   };
@@ -130,9 +132,9 @@ export const useAuthProvider = () => {
       console.log('Resultado da verificação de admin:', { data, error });
 
       if (error) {
-        // ✅ CORREÇÃO: Se tabela não existe ou há erro de estrutura, assumir não-admin
+        // Se tabela não existe ou há erro de estrutura, assumir não-admin
         if (error.code === 'PGRST106' || error.code === '42P01' || error.code === '42703' || error.details?.includes('does not exist')) {
-          console.warn('Tabela user_roles não encontrada ou com estrutura incorreta, assumindo usuário não-admin');
+          console.warn('Tabela user_roles não encontrada, assumindo usuário não-admin');
           setIsAdmin(false);
           return;
         }
@@ -159,58 +161,49 @@ export const useAuthProvider = () => {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      return { error };
+    } catch (error) {
+      console.error('Error in signIn:', error);
+      return { error };
+    }
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName,
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            full_name: fullName,
+          },
         },
-      },
-    });
+      });
 
-    // Se o cadastro foi bem-sucedido, enviar email de boas-vindas
-    if (!error && data.user && data.user.email) {
-      try {
-        // Enviar email de boas-vindas
-        const emailResult = await sendWelcomeEmail(data.user.email, fullName);
-        
-        if (emailResult.success) {
-          console.log('Email de boas-vindas enviado com sucesso');
-        } else {
-          console.error('Erro ao enviar email de boas-vindas:', emailResult.error);
-        }
-
-        // Notificar admin sobre novo usuário
-        await sendAdminNotification('Novo usuário cadastrado', {
-          email: data.user.email,
-          fullName: fullName,
-          userId: data.user.id,
-          createdAt: new Date().toISOString()
-        });
-
-      } catch (emailError) {
-        console.error('Erro no envio de emails:', emailError);
-        // Não retornar erro para não quebrar o fluxo de cadastro
-      }
+      // Não enviar emails por enquanto para evitar erros
+      console.log('User signed up successfully:', data.user?.email);
+      
+      return { error };
+    } catch (error) {
+      console.error('Error in signUp:', error);
+      return { error };
     }
-    
-    return { error };
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('Error in signOut:', error);
+    }
   };
 
   return {
