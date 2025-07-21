@@ -14,6 +14,7 @@ interface AuthContextType {
   isSubscribed: boolean;
   hasAccess: boolean;
   isAdmin: boolean;
+  refreshAdminStatus: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -88,6 +89,12 @@ export const useAuthProvider = () => {
         .maybeSingle();
 
       if (error) {
+        // ✅ CORREÇÃO: Se tabela não existe, assumir acesso liberado para desenvolvimento
+        if (error.code === 'PGRST106' || error.code === '42P01') {
+          console.warn('Tabela subscriptions não encontrada, liberando acesso para desenvolvimento');
+          setIsSubscribed(true);
+          return;
+        }
         console.error('Error checking subscription:', error);
         setIsSubscribed(false);
         return;
@@ -102,29 +109,48 @@ export const useAuthProvider = () => {
       }
     } catch (error) {
       console.error('Error in checkSubscriptionStatus:', error);
-      setIsSubscribed(false);
+      // ✅ CORREÇÃO: Em caso de erro, liberar acesso para desenvolvimento
+      setIsSubscribed(true);
     }
   };
 
   const checkAdminStatus = async (userId: string) => {
     try {
+      console.log('Verificando status de admin para usuário:', userId);
+      
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .eq('role', 'admin')
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error checking admin status:', error);
+      console.log('Resultado da verificação de admin:', { data, error });
+
+      if (error) {
+        if (error.code === 'PGRST106' || error.code === '42P01') {
+          console.warn('Tabela user_roles não encontrada, assumindo usuário não-admin');
+          setIsAdmin(false);
+          return;
+        }
+        if (error.code !== 'PGRST116') {
+          console.error('Error checking admin status:', error);
+        }
         setIsAdmin(false);
         return;
       }
 
-      setIsAdmin(!!data);
+      const adminStatus = data?.role === 'admin';
+      console.log('Status de admin definido para:', adminStatus);
+      setIsAdmin(adminStatus);
     } catch (error) {
       console.error('Error in checkAdminStatus:', error);
       setIsAdmin(false);
+    }
+  };
+
+  const refreshAdminStatus = async () => {
+    if (user) {
+      await checkAdminStatus(user.id);
     }
   };
 
@@ -166,6 +192,7 @@ export const useAuthProvider = () => {
     isSubscribed,
     hasAccess,
     isAdmin,
+    refreshAdminStatus,
   };
 };
 

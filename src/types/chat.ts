@@ -2,7 +2,7 @@ export interface Message {
   id: string;
   content: string;
   sender: 'user' | 'ai';
-  timestamp: Date;
+  timestamp: Date | string;
 }
 
 export interface Conversation {

@@ -2,12 +2,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import type { Conversation } from '@/types/chat';
 
 export function useConversations() {
   const { user, hasAccess } = useAuth();
-  const { toast } = useToast();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,25 +32,46 @@ export function useConversations() {
 
       if (error) throw error;
 
-      const formattedConversations: Conversation[] = data.map(conv => ({
-        id: conv.id,
-        title: conv.title,
-        lastMessage: conv.last_message || '',
-        timestamp: new Date(conv.updated_at),
-        createdAt: new Date(conv.created_at),
-        updatedAt: new Date(conv.updated_at),
-        isFavorite: conv.is_favorite || false,
-        messages: Array.isArray(conv.messages) ? conv.messages as any[] : []
-      }));
+      const formattedConversations: Conversation[] = data.map(conv => {
+        // ✅ CORREÇÃO: Tratamento correto do JSON
+        let messages: any[] = [];
+        
+        if (typeof conv.messages === 'string') {
+          try {
+            const parsedMessages = JSON.parse(conv.messages);
+            // ✅ CORREÇÃO: Garantir que timestamps sejam Date objects
+            messages = parsedMessages.map((msg: any) => ({
+              ...msg,
+              timestamp: typeof msg.timestamp === 'string' ? new Date(msg.timestamp) : msg.timestamp
+            }));
+          } catch (e) {
+            console.error('Erro ao fazer parse das mensagens:', e);
+            messages = [];
+          }
+        } else if (Array.isArray(conv.messages)) {
+          // ✅ CORREÇÃO: Garantir que timestamps sejam Date objects
+          messages = conv.messages.map((msg: any) => ({
+            ...msg,
+            timestamp: typeof msg.timestamp === 'string' ? new Date(msg.timestamp) : msg.timestamp
+          }));
+        }
+
+        return {
+          id: conv.id,
+          title: conv.title,
+          lastMessage: conv.last_message || '',
+          timestamp: new Date(conv.updated_at),
+          createdAt: new Date(conv.created_at),
+          updatedAt: new Date(conv.updated_at),
+          isFavorite: conv.is_favorite || false,
+          messages: messages
+        };
+      });
 
       setConversations(formattedConversations);
     } catch (error) {
       console.error('Error loading conversations:', error);
-      toast({
-        title: 'Erro ao carregar conversas',
-        description: 'Não foi possível carregar suas conversas.',
-        variant: 'destructive',
-      });
+      toast.error('Não foi possível carregar suas conversas');
     } finally {
       setLoading(false);
     }
@@ -59,11 +79,7 @@ export function useConversations() {
 
   const createConversation = async (title: string, firstMessage: string): Promise<string | null> => {
     if (!user || !hasAccess) {
-      toast({
-        title: 'Acesso negado',
-        description: 'Você precisa ter uma assinatura ativa para criar conversas.',
-        variant: 'destructive',
-      });
+      toast.error('Você precisa ter uma assinatura ativa para criar conversas');
       return null;
     }
 
@@ -89,6 +105,29 @@ export function useConversations() {
 
       if (error) throw error;
 
+      // ✅ CORREÇÃO: Tratamento correto do JSON na criação
+      let messages: any[] = [];
+      
+      if (typeof data.messages === 'string') {
+        try {
+          const parsedMessages = JSON.parse(data.messages);
+          // ✅ CORREÇÃO: Garantir que timestamps sejam Date objects
+          messages = parsedMessages.map((msg: any) => ({
+            ...msg,
+            timestamp: typeof msg.timestamp === 'string' ? new Date(msg.timestamp) : msg.timestamp
+          }));
+        } catch (e) {
+          console.error('Erro ao fazer parse das mensagens na criação:', e);
+          messages = [];
+        }
+      } else if (Array.isArray(data.messages)) {
+        // ✅ CORREÇÃO: Garantir que timestamps sejam Date objects
+        messages = data.messages.map((msg: any) => ({
+          ...msg,
+          timestamp: typeof msg.timestamp === 'string' ? new Date(msg.timestamp) : msg.timestamp
+        }));
+      }
+
       const formattedConv: Conversation = {
         id: data.id,
         title: data.title,
@@ -97,18 +136,14 @@ export function useConversations() {
         createdAt: new Date(data.created_at),
         updatedAt: new Date(data.updated_at),
         isFavorite: data.is_favorite,
-        messages: Array.isArray(data.messages) ? JSON.parse(data.messages as unknown as string) : []
+        messages: messages
       };
 
       setConversations(prev => [formattedConv, ...prev]);
       return data.id;
     } catch (error) {
       console.error('Error creating conversation:', error);
-      toast({
-        title: 'Erro ao criar conversa',
-        description: 'Não foi possível criar a conversa.',
-        variant: 'destructive',
-      });
+      toast.error('Não foi possível criar a conversa');
       return null;
     }
   };
@@ -143,11 +178,7 @@ export function useConversations() {
       );
     } catch (error) {
       console.error('Error updating conversation:', error);
-      toast({
-        title: 'Erro ao atualizar conversa',
-        description: 'Não foi possível atualizar a conversa.',
-        variant: 'destructive',
-      });
+      toast.error('Não foi possível atualizar a conversa');
     }
   };
 
@@ -165,17 +196,9 @@ export function useConversations() {
 
       setConversations(prev => prev.filter(conv => conv.id !== id));
       
-      toast({
-        title: 'Conversa excluída',
-        description: 'A conversa foi removida com sucesso.',
-      });
     } catch (error) {
       console.error('Error deleting conversation:', error);
-      toast({
-        title: 'Erro ao excluir conversa',
-        description: 'Não foi possível excluir a conversa.',
-        variant: 'destructive',
-      });
+      toast.error('Não foi possível excluir a conversa');
     }
   };
 
@@ -202,6 +225,29 @@ export function useConversations() {
 
       if (error) throw error;
 
+      // ✅ CORREÇÃO: Tratamento correto do JSON na duplicação
+      let messages: any[] = [];
+      
+      if (typeof data.messages === 'string') {
+        try {
+          const parsedMessages = JSON.parse(data.messages);
+          // ✅ CORREÇÃO: Garantir que timestamps sejam Date objects
+          messages = parsedMessages.map((msg: any) => ({
+            ...msg,
+            timestamp: typeof msg.timestamp === 'string' ? new Date(msg.timestamp) : msg.timestamp
+          }));
+        } catch (e) {
+          console.error('Erro ao fazer parse das mensagens na duplicação:', e);
+          messages = [];
+        }
+      } else if (Array.isArray(data.messages)) {
+        // ✅ CORREÇÃO: Garantir que timestamps sejam Date objects
+        messages = data.messages.map((msg: any) => ({
+          ...msg,
+          timestamp: typeof msg.timestamp === 'string' ? new Date(msg.timestamp) : msg.timestamp
+        }));
+      }
+
       const formattedConv: Conversation = {
         id: data.id,
         title: data.title,
@@ -210,22 +256,14 @@ export function useConversations() {
         createdAt: new Date(data.created_at),
         updatedAt: new Date(data.updated_at),
         isFavorite: data.is_favorite,
-        messages: Array.isArray(data.messages) ? JSON.parse(data.messages as unknown as string) : []
+        messages: messages
       };
 
       setConversations(prev => [formattedConv, ...prev]);
       
-      toast({
-        title: 'Conversa duplicada',
-        description: 'Uma nova conversa foi criada com o mesmo contexto.',
-      });
     } catch (error) {
       console.error('Error duplicating conversation:', error);
-      toast({
-        title: 'Erro ao duplicar conversa',
-        description: 'Não foi possível duplicar a conversa.',
-        variant: 'destructive',
-      });
+      toast.error('Não foi possível duplicar a conversa');
     }
   };
 
@@ -254,19 +292,9 @@ export function useConversations() {
         )
       );
 
-      toast({
-        title: newFavoriteStatus ? 'Adicionado aos favoritos' : 'Removido dos favoritos',
-        description: newFavoriteStatus 
-          ? 'A conversa foi adicionada aos seus favoritos.'
-          : 'A conversa foi removida dos seus favoritos.',
-      });
     } catch (error) {
       console.error('Error toggling favorite:', error);
-      toast({
-        title: 'Erro ao alterar favorito',
-        description: 'Não foi possível alterar o status de favorito.',
-        variant: 'destructive',
-      });
+      toast.error('Não foi possível alterar o status de favorito');
     }
   };
 

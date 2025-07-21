@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
@@ -276,6 +277,13 @@ IMPORTANTE:
 - Se atente a qualidade dos ganchos e a escrita.
 - Crie um conteúdo excelente para o usuario.`;
 
+// Function to calculate approximate token cost
+function calculateTokenCost(tokens: number, model: string = 'gpt-4.1-mini-2025-04-14'): number {
+  // GPT-4 mini pricing (approximate)
+  const costPerToken = 0.00015 / 1000; // $0.00015 per 1K tokens
+  return tokens * costPerToken;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -289,7 +297,26 @@ serve(async (req) => {
 
     const { messages, conversationId } = await req.json();
     
-    console.log('Received chat request:', { conversationId, messageCount: messages.length });
+    // Get user ID from the request headers
+    const authHeader = req.headers.get('authorization');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    let userId = null;
+    
+    // Extract user from JWT token if available
+    if (authHeader && supabaseUrl && supabaseServiceKey) {
+      try {
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user } } = await supabase.auth.getUser(token);
+        userId = user?.id;
+      } catch (error) {
+        console.warn('Could not extract user from token:', error);
+      }
+    }
+    
+    console.log('Received chat request:', { conversationId, messageCount: messages.length, userId });
 
     // Prepara as mensagens para a OpenAI
     const openAIMessages = [
@@ -330,10 +357,36 @@ serve(async (req) => {
     console.log('OpenAI response received successfully');
 
     const assistantMessage = data.choices[0].message.content;
+    const tokensUsed = data.usage?.total_tokens || 0;
+    const cost = calculateTokenCost(tokensUsed);
+
+    console.log('Token usage:', { tokensUsed, cost, userId, conversationId });
+
+    // Log token usage to database if we have user info
+    if (userId && tokensUsed > 0 && supabaseUrl && supabaseServiceKey) {
+      try {
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        
+        await supabase.rpc('log_token_usage', {
+          target_user_id: userId,
+          target_conversation_id: conversationId || null,
+          tokens: tokensUsed,
+          model: 'gpt-4.1-mini-2025-04-14',
+          cost: cost
+        });
+        
+        console.log('Token usage logged successfully');
+      } catch (error) {
+        console.error('Failed to log token usage:', error);
+        // Don't fail the request if logging fails
+      }
+    }
 
     return new Response(JSON.stringify({ 
       message: assistantMessage,
-      success: true 
+      success: true,
+      tokens_used: tokensUsed,
+      cost: cost
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
