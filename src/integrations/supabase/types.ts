@@ -49,61 +49,85 @@ export type Database = {
       }
       profiles: {
         Row: {
+          admin_email: string | null
           avatar_url: string | null
           created_at: string
           full_name: string | null
           id: string
+          is_admin_created: boolean | null
+          temp_id: string | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
+          admin_email?: string | null
           avatar_url?: string | null
           created_at?: string
           full_name?: string | null
           id?: string
+          is_admin_created?: boolean | null
+          temp_id?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
+          admin_email?: string | null
           avatar_url?: string | null
           created_at?: string
           full_name?: string | null
           id?: string
+          is_admin_created?: boolean | null
+          temp_id?: string | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
       subscriptions: {
         Row: {
-          created_at: string
+          access_code: string
+          created_at: string | null
+          customer_email: string
+          customer_name: string | null
           expires_at: string | null
           id: string
-          kiwify_order_id: string | null
+          kiwify_order_id: string
           plan_type: string
+          registration_completed_at: string | null
           status: string
-          updated_at: string
-          user_id: string
+          updated_at: string | null
+          user_email_registered: string | null
+          user_id: string | null
         }
         Insert: {
-          created_at?: string
+          access_code: string
+          created_at?: string | null
+          customer_email: string
+          customer_name?: string | null
           expires_at?: string | null
           id?: string
-          kiwify_order_id?: string | null
+          kiwify_order_id: string
           plan_type?: string
+          registration_completed_at?: string | null
           status?: string
-          updated_at?: string
-          user_id: string
+          updated_at?: string | null
+          user_email_registered?: string | null
+          user_id?: string | null
         }
         Update: {
-          created_at?: string
+          access_code?: string
+          created_at?: string | null
+          customer_email?: string
+          customer_name?: string | null
           expires_at?: string | null
           id?: string
-          kiwify_order_id?: string | null
+          kiwify_order_id?: string
           plan_type?: string
+          registration_completed_at?: string | null
           status?: string
-          updated_at?: string
-          user_id?: string
+          updated_at?: string | null
+          user_email_registered?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -136,6 +160,43 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_admin_user: {
+        Args: {
+          user_email: string
+          user_password: string
+          user_full_name: string
+          user_role?: string
+          plan_type?: string
+        }
+        Returns: Json
+      }
+      create_admin_user_v3: {
+        Args: {
+          user_email: string
+          user_full_name: string
+          user_role?: string
+          plan_type?: string
+        }
+        Returns: Json
+      }
+      get_admin_users_v3: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          user_id: string
+          email: string
+          full_name: string
+          role: string
+          plan_type: string
+          status: string
+          is_admin_created: boolean
+          registration_status: string
+          created_at: string
+        }[]
+      }
+      link_subscription_to_user: {
+        Args: { p_access_code: string; p_user_id: string }
+        Returns: boolean
+      }
       make_user_admin: {
         Args: { user_email: string }
         Returns: undefined
