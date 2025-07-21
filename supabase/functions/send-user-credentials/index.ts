@@ -93,35 +93,93 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log("✅ Email disponível, criando usuário usando função SQL...");
 
-    // Usar a função SQL create_user_admin_final que evita problemas com triggers
-    const { data: createUserResult, error: createUserError } = await supabaseAdmin
-      .rpc('create_user_admin_final', {
-        user_email: email,
-        user_password: tempPassword,
-        user_full_name: fullName,
-        user_role: role || 'user',
-        plan_type: planType || 'free'
-      });
+    // Gerar ID e código de acesso
+    const newUserId = crypto.randomUUID();
+    const accessCode = 'START-' + Math.random().toString(36).substr(2, 8).toUpperCase();
+
+    // Criar usuário no auth
+    console.log("✅ Criando usuário no sistema de autenticação...");
+    const { data: authData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+      email: email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: {
+        full_name: fullName
+      }
+    });
 
     if (createUserError) {
-      console.error("❌ Erro ao criar usuário via função SQL:", createUserError);
-      throw new Error(`Erro ao criar usuário: ${createUserError.message}`);
+      console.error("❌ Erro ao criar usuário no auth:", createUserError);
+      throw new Error(`Erro ao criar conta no sistema de autenticação: ${createUserError.message}`);
     }
 
-    if (!createUserResult?.success) {
-      console.error("❌ Função SQL retornou erro:", createUserResult);
-      throw new Error(`Erro ao criar usuário: ${createUserResult?.error || 'Erro desconhecido'}`);
+    if (!authData.user) {
+      console.error("❌ Usuário não foi criado no sistema de autenticação");
+      throw new Error("Falha ao criar usuário - dados de autenticação não retornados");
     }
 
-    console.log("✅ Usuário criado com sucesso:", createUserResult.user_id);
+    console.log("✅ Usuário criado no auth:", authData.user.id);
 
-    // Criar objeto similar ao authData.user para compatibilidade
-    const authData = {
-      user: {
-        id: createUserResult.user_id,
-        email: email
-      }
-    };
+    // Criar registros relacionados usando o user_id real
+    const userId = authData.user.id;
+
+    // Criar/atualizar profile
+    console.log("📝 Criando profile do usuário...");
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .upsert({
+        user_id: userId,
+        full_name: fullName,
+        is_admin_created: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+    if (profileError) {
+      console.error("❌ Erro ao criar profile:", profileError);
+    } else {
+      console.log("✅ Profile criado com sucesso");
+    }
+
+    // Criar role do usuário
+    console.log("👤 Criando role do usuário...");
+    const { error: roleError } = await supabaseAdmin
+      .from('user_roles')
+      .upsert({
+        user_id: userId,
+        role: role || 'user',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+    if (roleError) {
+      console.error("❌ Erro ao criar role:", roleError);
+    } else {
+      console.log("✅ Role criada com sucesso");
+    }
+
+    // Criar subscription
+    console.log("💳 Criando subscription...");
+    const { error: subscriptionError } = await supabaseAdmin
+      .from('subscriptions')
+      .insert({
+        user_id: userId,
+        customer_email: email,
+        customer_name: fullName,
+        status: 'active',
+        plan_type: planType || 'premium',
+        access_code: accessCode,
+        kiwify_order_id: 'ADMIN-' + Math.random().toString(36).substr(2, 12).toUpperCase(),
+        expires_at: planType === 'free' ? null : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+    if (subscriptionError) {
+      console.error("❌ Erro ao criar subscription:", subscriptionError);
+    } else {
+      console.log("✅ Subscription criada com sucesso");
+    }
 
     console.log("✅ Usuário e registros relacionados criados automaticamente pela função SQL");
 
