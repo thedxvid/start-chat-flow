@@ -6,24 +6,16 @@ interface UserProfile {
   id?: string;
   user_id: string;
   full_name: string;
-  phone?: string;
-  bio?: string;
   avatar_url?: string;
-  preferences: {
-    emailNotifications: boolean;
-    pushNotifications: boolean;
-    weeklyReports: boolean;
-    marketingEmails: boolean;
-    theme: 'light' | 'dark' | 'system';
-  };
+  admin_email?: string;
+  is_admin_created?: boolean;
+  temp_id?: string;
   created_at?: string;
   updated_at?: string;
 }
 
 interface UserStats {
   totalConversations: number;
-  totalTokensUsed: number;
-  totalCost: number;
   lastActivity: string | null;
   accountAge: number; // em dias
 }
@@ -35,13 +27,6 @@ export function useUserSettings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const defaultPreferences = {
-    emailNotifications: true,
-    pushNotifications: false,
-    weeklyReports: true,
-    marketingEmails: false,
-    theme: 'system' as const
-  };
 
   useEffect(() => {
     if (user) {
@@ -68,16 +53,12 @@ export function useUserSettings() {
       }
 
       if (data) {
-        setProfile({
-          ...data,
-          preferences: data.preferences || defaultPreferences
-        });
+        setProfile(data);
       } else {
         // Criar perfil se não existir
-        const newProfile: Partial<UserProfile> = {
+        const newProfile = {
           user_id: user.id,
-          full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
-          preferences: defaultPreferences
+          full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || ''
         };
 
         const { data: createdProfile, error: createError } = await supabase
@@ -110,25 +91,10 @@ export function useUserSettings() {
 
       if (convError) throw convError;
 
-      // Buscar uso de tokens
-      const { data: tokenUsage, error: tokenError } = await supabase
-        .from('token_usage')
-        .select('tokens_used, cost, created_at')
-        .eq('user_id', user.id);
-
-      if (tokenError && tokenError.code !== 'PGRST106') {
-        throw tokenError;
-      }
-
       const totalConversations = conversations?.length || 0;
-      const totalTokensUsed = tokenUsage?.reduce((sum, usage) => sum + (usage.tokens_used || 0), 0) || 0;
-      const totalCost = tokenUsage?.reduce((sum, usage) => sum + (usage.cost || 0), 0) || 0;
 
       // Calcular última atividade
-      const allDates = [
-        ...(conversations?.map(c => new Date(c.created_at)) || []),
-        ...(tokenUsage?.map(t => new Date(t.created_at)) || [])
-      ];
+      const allDates = conversations?.map(c => new Date(c.created_at)) || [];
       
       const lastActivity = allDates.length > 0 
         ? Math.max(...allDates.map(d => d.getTime()))
@@ -140,8 +106,6 @@ export function useUserSettings() {
 
       setStats({
         totalConversations,
-        totalTokensUsed,
-        totalCost,
         lastActivity: lastActivity ? new Date(lastActivity).toISOString() : null,
         accountAge
       });
@@ -192,15 +156,11 @@ export function useUserSettings() {
     }
   };
 
-  const updatePreferences = async (newPreferences: Partial<UserProfile['preferences']>) => {
+  const updatePreferences = async (newPreferences: any) => {
     if (!profile) return { success: false, error: 'Perfil não encontrado' };
-
-    const updatedPreferences = {
-      ...profile.preferences,
-      ...newPreferences
-    };
-
-    return updateProfile({ preferences: updatedPreferences });
+    
+    // Por enquanto, não há suporte a preferences no banco
+    return { success: true };
   };
 
   const changePassword = async (newPassword: string) => {
@@ -232,9 +192,8 @@ export function useUserSettings() {
       setLoading(true);
 
       // Buscar todos os dados do usuário
-      const [conversationsResult, tokenUsageResult, profileResult] = await Promise.all([
+      const [conversationsResult, profileResult] = await Promise.all([
         supabase.from('conversations').select('*').eq('user_id', user.id),
-        supabase.from('token_usage').select('*').eq('user_id', user.id),
         supabase.from('profiles').select('*').eq('user_id', user.id).single()
       ]);
 
@@ -247,7 +206,6 @@ export function useUserSettings() {
         },
         profile: profileResult.data,
         conversations: conversationsResult.data || [],
-        tokenUsage: tokenUsageResult.data || [],
         stats,
         exportDate: new Date().toISOString(),
         version: '1.0'

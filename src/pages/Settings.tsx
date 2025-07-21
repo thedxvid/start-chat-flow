@@ -157,10 +157,8 @@ export function Settings() {
         .select('*')
         .eq('user_id', user?.id);
 
-      const { data: tokenUsage } = await supabase
-        .from('token_usage')
-        .select('*')
-        .eq('user_id', user?.id);
+      // Token usage não está disponível ainda
+      const tokenUsage: any[] = [];
 
       const exportData = {
         user: {

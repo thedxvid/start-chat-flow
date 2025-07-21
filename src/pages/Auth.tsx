@@ -26,12 +26,12 @@ export default function Auth() {
   // Função para validar código de acesso no banco de dados
   const validateAccessCode = async (code: string, customerEmail: string): Promise<boolean> => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('subscriptions')
         .select('access_code, status, customer_email, expires_at')
         .eq('access_code', code.toUpperCase())
         .eq('status', 'active')
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Erro ao validar código:', error);
@@ -116,7 +116,7 @@ export default function Auth() {
     } else {
       // Atualizar o registro da assinatura com o user_id após o cadastro
       try {
-        await supabase
+        await (supabase as any)
           .from('subscriptions')
           .update({ 
             user_email_registered: email,

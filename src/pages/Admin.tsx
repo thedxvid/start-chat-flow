@@ -135,7 +135,7 @@ export function Admin() {
   };
 
   const handleDeleteUser = async (userId: string, userEmail: string) => {
-    const result = await deleteUser(userId);
+    const result = await deleteUser(userId, userEmail);
     
     if (result.success) {
       toast.success(`Usuário ${userEmail} excluído com sucesso`);
@@ -144,8 +144,8 @@ export function Admin() {
     }
   };
 
-  const handleUpdateSubscription = async (userId: string, planType: string, status: string) => {
-    const result = await updateUserSubscription(userId, planType, status);
+  const handleUpdateSubscription = async (userId: string, planType: "free" | "premium" | "pro", userEmail?: string) => {
+    const result = await updateUserSubscription(userId, planType, userEmail);
     
     if (result.success) {
       toast.success("Assinatura atualizada com sucesso");
@@ -446,7 +446,7 @@ export function Admin() {
                             <div className="flex items-center gap-2">
                               <select
                                 value={user.subscription?.status || 'inactive'}
-                                onChange={(e) => handleUpdateSubscription(user.id, user.subscription?.plan_type || 'premium', e.target.value)}
+                                onChange={(e) => handleUpdateSubscription(user.id, (user.subscription?.plan_type as "free" | "premium" | "pro") || 'premium', user.email)}
                                 className="w-24 h-8 text-xs rounded-md border border-input bg-background px-2 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                               >
                                 <option value="active">Ativo</option>
