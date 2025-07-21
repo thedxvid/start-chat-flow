@@ -37,7 +37,7 @@ export const emailTemplates = {
             </ul>
           </div>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8081'}" 
+            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://sistemastart.com'}" 
                style="background: linear-gradient(135deg, #1E90FF, #0066CC); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">
               Começar Agora
             </a>

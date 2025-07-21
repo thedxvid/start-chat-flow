@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@4.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.52.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,6 +30,89 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error("Dados obrigatórios não fornecidos");
     }
 
+    // Criar cliente Supabase com privilégios de service role
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+
+    console.log("Criando usuário no sistema de autenticação:", email);
+
+    // Criar o usuário diretamente no sistema de autenticação
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: email,
+      password: tempPassword,
+      email_confirm: true, // Confirmar email automaticamente
+      user_metadata: {
+        full_name: fullName
+      }
+    });
+
+    if (authError) {
+      console.error("Erro ao criar usuário no auth:", authError);
+      throw new Error(`Erro ao criar conta: ${authError.message}`);
+    }
+
+    console.log("Usuário criado com sucesso no auth:", authData.user.id);
+
+    // Verificar se existe registro administrativo pendente e vincular
+    try {
+      const { data: adminRecord, error: adminError } = await supabaseAdmin
+        .from('profiles')
+        .select('id, temp_id')
+        .eq('admin_email', email)
+        .eq('is_admin_created', true)
+        .is('user_id', null)
+        .maybeSingle();
+
+      if (adminRecord && !adminError) {
+        console.log("Vinculando registro administrativo:", adminRecord.id);
+
+        // Atualizar o perfil para vincular ao usuário real
+        await supabaseAdmin
+          .from('profiles')
+          .update({ 
+            user_id: authData.user.id,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', adminRecord.id);
+
+        // Atualizar user_roles
+        await supabaseAdmin
+          .from('user_roles')
+          .update({ 
+            user_id: authData.user.id,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', adminRecord.temp_id);
+
+        // Atualizar subscriptions
+        await supabaseAdmin
+          .from('subscriptions')
+          .update({ 
+            user_id: authData.user.id,
+            status: 'active',
+            user_email_registered: email,
+            registration_completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('customer_email', email)
+          .is('user_id', null);
+
+        console.log("Registro administrativo vinculado com sucesso");
+      }
+    } catch (linkError) {
+      console.error("Erro ao vincular registro administrativo:", linkError);
+      // Não falhar por causa disso, o usuário foi criado
+    }
+
+    // Enviar email com as credenciais
     const emailResponse = await resend.emails.send({
       from: "Sistema <noreply@sistemastart.com>",
       to: [email],
@@ -52,12 +136,12 @@ serve(async (req: Request): Promise<Response> => {
             <h3 style="color: #856404; margin-top: 0;">⚠️ Importante:</h3>
             <p style="color: #856404; margin-bottom: 0;">
               Por segurança, altere sua senha no primeiro acesso ao sistema. 
-              Esta senha temporária expirará em 24 horas.
+              Você pode fazer login imediatamente com essas credenciais.
             </p>
           </div>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${Deno.env.get("SITE_URL") || "http://localhost:3000"}/auth" 
+            <a href="${Deno.env.get("SITE_URL") || "https://sistemastart.com"}/auth" 
                style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
               Acessar o Sistema
             </a>
@@ -74,7 +158,9 @@ serve(async (req: Request): Promise<Response> => {
 
     return new Response(JSON.stringify({ 
       success: true, 
-      messageId: emailResponse.data?.id 
+      messageId: emailResponse.data?.id,
+      userId: authData.user.id,
+      message: "Usuário criado e email enviado com sucesso"
     }), {
       status: 200,
       headers: {
@@ -83,7 +169,7 @@ serve(async (req: Request): Promise<Response> => {
       },
     });
   } catch (error: any) {
-    console.error("Erro ao enviar email:", error);
+    console.error("Erro ao criar usuário e enviar email:", error);
     return new Response(
       JSON.stringify({ 
         success: false, 

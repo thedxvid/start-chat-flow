@@ -103,7 +103,10 @@ export function useAdmin() {
     try {
       console.log('Criando usuário:', userData);
       
-      // Usar função corrigida v3
+      // Gerar senha temporária
+      const tempPassword = 'TEMP-' + Math.random().toString(36).slice(-8).toUpperCase();
+      
+      // Usar função corrigida v3 para criar registro administrativo primeiro
       const { data, error } = await (supabase as any).rpc('create_admin_user_v3', {
         user_email: userData.email,
         user_full_name: userData.fullName,
@@ -122,58 +125,48 @@ export function useAdmin() {
         throw new Error(errorMsg);
       }
 
-      console.log('Usuário criado com sucesso:', data);
+      console.log('Registro administrativo criado com sucesso:', data);
 
-      // Enviar email com credenciais usando a edge function
+      // Agora criar o usuário real e enviar email usando a edge function
       try {
-        console.log('Enviando email com credenciais...');
+        console.log('Criando usuário no sistema e enviando credenciais...');
         
         const { data: emailData, error: emailError } = await supabase.functions.invoke('send-user-credentials', {
           body: {
             email: userData.email,
             fullName: userData.fullName,
-            tempPassword: 'TEMP-' + Math.random().toString(36).slice(-8).toUpperCase(),
+            tempPassword: tempPassword,
             role: userData.role || 'user',
             planType: userData.planType || 'free'
           }
         });
 
         if (emailError) {
-          console.error('Erro ao enviar email com credenciais:', emailError);
-          // Não falhar a criação do usuário por causa do email
-        } else {
-          console.log('Email com credenciais enviado com sucesso:', emailData);
+          console.error('Erro ao criar usuário e enviar email:', emailError);
+          throw new Error(`Erro ao criar usuário: ${emailError.message}`);
         }
+
+        if (!emailData.success) {
+          throw new Error(`Erro ao criar usuário: ${emailData.error}`);
+        }
+
+        console.log('Usuário criado e email enviado com sucesso:', emailData);
+        
+        // Atualizar lista de usuários
+        await fetchUsers();
+        
+        return {
+          success: true,
+          message: 'Usuário criado com sucesso! As credenciais foram enviadas por email.',
+          userId: emailData.userId
+        };
       } catch (emailError) {
-        console.error('Erro ao invocar função de email:', emailError);
-        // Não falhar a criação do usuário por causa do email
+        console.error('Erro ao criar usuário:', emailError);
+        throw new Error(`Erro ao criar usuário: ${emailError}`);
       }
-
-      // Notificar admin sobre criação de usuário
-      try {
-        await sendAdminNotification('Usuário criado via painel admin', {
-          newUser: {
-            email: userData.email,
-            fullName: userData.fullName,
-            role: userData.role || 'user',
-            planType: userData.planType || 'free'
-          },
-          createdBy: user?.email,
-          timestamp: new Date().toISOString()
-        });
-      } catch (notificationError) {
-        console.error('Erro ao enviar notificação admin:', notificationError);
-      }
-
-      await fetchUsers();
-      
-      return { 
-        success: true, 
-        message: `Usuário ${userData.fullName} criado com sucesso! Email com credenciais enviado para ${userData.email}.`
-      };
     } catch (error) {
       console.error('Erro ao criar usuário:', error);
-      return { success: false, error: error.message };
+      throw error;
     }
   };
 
