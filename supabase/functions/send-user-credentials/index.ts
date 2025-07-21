@@ -91,101 +91,39 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error(`Email ${email} já está registrado no sistema`);
     }
 
-    console.log("✅ Email disponível, criando usuário no auth...");
+    console.log("✅ Email disponível, criando usuário usando função SQL...");
 
-    // Criar o usuário diretamente no sistema de autenticação
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        full_name: fullName
+    // Usar a função SQL create_user_admin_final que evita problemas com triggers
+    const { data: createUserResult, error: createUserError } = await supabaseAdmin
+      .rpc('create_user_admin_final', {
+        user_email: email,
+        user_password: tempPassword,
+        user_full_name: fullName,
+        user_role: role || 'user',
+        plan_type: planType || 'free'
+      });
+
+    if (createUserError) {
+      console.error("❌ Erro ao criar usuário via função SQL:", createUserError);
+      throw new Error(`Erro ao criar usuário: ${createUserError.message}`);
+    }
+
+    if (!createUserResult?.success) {
+      console.error("❌ Função SQL retornou erro:", createUserResult);
+      throw new Error(`Erro ao criar usuário: ${createUserResult?.error || 'Erro desconhecido'}`);
+    }
+
+    console.log("✅ Usuário criado com sucesso:", createUserResult.user_id);
+
+    // Criar objeto similar ao authData.user para compatibilidade
+    const authData = {
+      user: {
+        id: createUserResult.user_id,
+        email: email
       }
-    });
+    };
 
-    if (authError) {
-      console.error("❌ Erro ao criar usuário no auth:", authError);
-      throw new Error(`Erro ao criar conta no sistema de autenticação: ${authError.message}`);
-    }
-
-    if (!authData.user) {
-      console.error("❌ Usuário criado mas sem dados retornados");
-      throw new Error("Usuário criado mas dados não retornados");
-    }
-
-    console.log("✅ Usuário criado com sucesso no auth:", authData.user.id);
-
-    // Tentar vincular registro administrativo se existir
-    try {
-      console.log("🔗 Verificando registros administrativos pendentes...");
-      const { data: adminRecord, error: adminError } = await supabaseAdmin
-        .from('profiles')
-        .select('id, temp_id')
-        .eq('admin_email', email)
-        .eq('is_admin_created', true)
-        .is('user_id', null)
-        .maybeSingle();
-
-      if (adminError) {
-        console.error("⚠️ Erro ao verificar registro admin:", adminError);
-      } else if (adminRecord) {
-        console.log("🔗 Vinculando registro administrativo:", adminRecord.id);
-
-        // Atualizar o perfil para vincular ao usuário real
-        const { error: updateProfileError } = await supabaseAdmin
-          .from('profiles')
-          .update({ 
-            user_id: authData.user.id,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', adminRecord.id);
-
-        if (updateProfileError) {
-          console.error("⚠️ Erro ao atualizar perfil:", updateProfileError);
-        } else {
-          console.log("✅ Perfil vinculado com sucesso");
-        }
-
-        // Atualizar user_roles
-        const { error: updateRolesError } = await supabaseAdmin
-          .from('user_roles')
-          .update({ 
-            user_id: authData.user.id,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', adminRecord.temp_id);
-
-        if (updateRolesError) {
-          console.error("⚠️ Erro ao atualizar roles:", updateRolesError);
-        } else {
-          console.log("✅ Roles vinculadas com sucesso");
-        }
-
-        // Atualizar subscriptions
-        const { error: updateSubError } = await supabaseAdmin
-          .from('subscriptions')
-          .update({ 
-            user_id: authData.user.id,
-            status: 'active',
-            user_email_registered: email,
-            registration_completed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('customer_email', email)
-          .is('user_id', null);
-
-        if (updateSubError) {
-          console.error("⚠️ Erro ao atualizar assinatura:", updateSubError);
-        } else {
-          console.log("✅ Assinatura vinculada com sucesso");
-        }
-      } else {
-        console.log("ℹ️ Nenhum registro administrativo pendente encontrado");
-      }
-    } catch (linkError) {
-      console.error("⚠️ Erro ao vincular registro administrativo:", linkError);
-      // Não falhar por causa disso, o usuário foi criado
-    }
+    console.log("✅ Usuário e registros relacionados criados automaticamente pela função SQL");
 
     // Inicializar Resend com verificação
     console.log("📧 Inicializando Resend...");
