@@ -101,24 +101,12 @@ export function useAdmin() {
 
   const createUser = async (userData: CreateUserData) => {
     try {
-      console.log('Criando usuário:', userData);
-      
-      // Verificar se o email já existe no auth.users primeiro
-      const { data: existingUsers, error: checkError } = await supabase.auth.admin.listUsers();
-      
-      if (checkError) {
-        console.error('Erro ao verificar usuários existentes:', checkError);
-      } else if (existingUsers) {
-        const userExists = existingUsers.users.find((u: any) => u.email === userData.email);
-        if (userExists) {
-          throw new Error(`Email ${userData.email} já está registrado no sistema de autenticação`);
-        }
-      }
+      console.log('🚀 Iniciando criação de usuário:', userData);
       
       // Gerar senha temporária
       const tempPassword = 'TEMP-' + Math.random().toString(36).slice(-8).toUpperCase();
       
-      console.log('Tentando criar usuário diretamente via Edge Function...');
+      console.log('📤 Chamando Edge Function send-user-credentials...');
       
       // Criar usuário diretamente via Edge Function
       const { data: emailData, error: emailError } = await supabase.functions.invoke('send-user-credentials', {
@@ -131,29 +119,52 @@ export function useAdmin() {
         }
       });
 
+      console.log('📨 Resposta da Edge Function:', { emailData, emailError });
+
       if (emailError) {
-        console.error('Erro detalhado da Edge Function:', emailError);
-        throw new Error(`Erro ao criar usuário: ${emailError.message || 'Erro desconhecido na função'}`);
+        console.error('❌ Erro detalhado da Edge Function:', {
+          message: emailError.message,
+          details: emailError.details,
+          hint: emailError.hint,
+          code: emailError.code
+        });
+        
+        // Tentar extrair informação mais útil do erro
+        let errorMessage = emailError.message || 'Erro desconhecido na função';
+        
+        if (emailError.message?.includes('Edge Function returned a non-2xx status code')) {
+          errorMessage = 'Erro interno no servidor. Verifique os logs da Edge Function para mais detalhes.';
+        }
+        
+        throw new Error(`Erro ao criar usuário: ${errorMessage}`);
       }
 
-      if (!emailData || !emailData.success) {
-        const errorMsg = emailData?.error || 'Resposta inválida da função de criação';
-        console.error('Falha na Edge Function:', { emailData, errorMsg });
+      if (!emailData) {
+        console.error('❌ Resposta vazia da Edge Function');
+        throw new Error('Resposta vazia da função de criação');
+      }
+
+      if (!emailData.success) {
+        const errorMsg = emailData.error || 'Resposta inválida da função de criação';
+        console.error('❌ Falha na Edge Function:', { emailData, errorMsg });
         throw new Error(`Erro ao criar usuário: ${errorMsg}`);
       }
 
-      console.log('Usuário criado e email enviado com sucesso:', emailData);
+      console.log('✅ Usuário criado e email enviado com sucesso:', emailData);
       
       // Atualizar lista de usuários
       await fetchUsers();
       
       return {
         success: true,
-        message: `Usuário criado com sucesso! As credenciais foram enviadas para ${userData.email}. A senha temporária é: ${tempPassword}`,
-        userId: emailData.userId
+        message: emailData.emailError 
+          ? `Usuário criado com sucesso! Houve um problema no envio do email, mas as credenciais são: ${userData.email} / ${tempPassword}`
+          : `Usuário criado com sucesso! As credenciais foram enviadas para ${userData.email}. A senha temporária é: ${tempPassword}`,
+        userId: emailData.userId,
+        tempPassword: tempPassword
       };
     } catch (error) {
-      console.error('Erro ao criar usuário:', error);
+      console.error('💥 Erro ao criar usuário:', error);
       throw error;
     }
   };
