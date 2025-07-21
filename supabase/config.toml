@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.chat-nathi]
 verify_jwt = false
+
+[functions.send-user-credentials]
+verify_jwt = false
