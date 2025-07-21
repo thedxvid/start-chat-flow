@@ -142,12 +142,14 @@ export function useAdmin() {
         });
 
         if (emailError) {
-          console.error('Erro ao criar usuário e enviar email:', emailError);
-          throw new Error(`Erro ao criar usuário: ${emailError.message}`);
+          console.error('Erro detalhado da Edge Function:', emailError);
+          throw new Error(`Erro ao criar usuário: ${emailError.message || 'Erro desconhecido na função'}`);
         }
 
-        if (!emailData.success) {
-          throw new Error(`Erro ao criar usuário: ${emailData.error}`);
+        if (!emailData || !emailData.success) {
+          const errorMsg = emailData?.error || 'Resposta inválida da função de criação';
+          console.error('Falha na Edge Function:', { emailData, errorMsg });
+          throw new Error(`Erro ao criar usuário: ${errorMsg}`);
         }
 
         console.log('Usuário criado e email enviado com sucesso:', emailData);
@@ -157,12 +159,14 @@ export function useAdmin() {
         
         return {
           success: true,
-          message: 'Usuário criado com sucesso! As credenciais foram enviadas por email.',
+          message: `Usuário criado com sucesso! As credenciais foram enviadas para ${userData.email}. A senha temporária é: ${tempPassword}`,
           userId: emailData.userId
         };
       } catch (emailError) {
         console.error('Erro ao criar usuário:', emailError);
-        throw new Error(`Erro ao criar usuário: ${emailError}`);
+        // Garantir que sempre temos uma mensagem de erro legível
+        const errorMessage = emailError instanceof Error ? emailError.message : String(emailError);
+        throw new Error(`Falha ao criar usuário: ${errorMessage}`);
       }
     } catch (error) {
       console.error('Erro ao criar usuário:', error);

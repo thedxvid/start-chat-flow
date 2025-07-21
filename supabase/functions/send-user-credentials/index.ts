@@ -26,14 +26,32 @@ serve(async (req: Request): Promise<Response> => {
   try {
     const { email, fullName, tempPassword, role, planType }: SendCredentialsRequest = await req.json();
 
+    console.log("Iniciando criação de usuário:", { email, fullName, role, planType });
+
     if (!email || !fullName || !tempPassword) {
       throw new Error("Dados obrigatórios não fornecidos");
     }
 
+    // Validar variáveis de ambiente
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    const siteUrl = Deno.env.get("SITE_URL");
+
+    if (!supabaseUrl || !supabaseServiceKey || !resendApiKey) {
+      console.error("Variáveis de ambiente faltando:", {
+        hasSupabaseUrl: !!supabaseUrl,
+        hasServiceKey: !!supabaseServiceKey,
+        hasResendKey: !!resendApiKey,
+        hasSiteUrl: !!siteUrl
+      });
+      throw new Error("Configuração do servidor incompleta");
+    }
+
     // Criar cliente Supabase com privilégios de service role
     const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      supabaseUrl,
+      supabaseServiceKey,
       {
         auth: {
           autoRefreshToken: false,
@@ -113,8 +131,10 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Enviar email com as credenciais
+    console.log("Enviando email para:", email);
+    
     const emailResponse = await resend.emails.send({
-      from: "Sistema <noreply@sistemastart.com>",
+      from: "Sistema <onboarding@resend.dev>", // Usar domínio padrão do Resend
       to: [email],
       subject: "Suas credenciais de acesso ao sistema",
       html: `
@@ -141,7 +161,7 @@ serve(async (req: Request): Promise<Response> => {
           </div>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${Deno.env.get("SITE_URL") || "https://sistemastart.com"}/auth" 
+            <a href="${siteUrl || window?.location?.origin || "https://your-domain.com"}/auth" 
                style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
               Acessar o Sistema
             </a>
@@ -153,6 +173,11 @@ serve(async (req: Request): Promise<Response> => {
         </div>
       `,
     });
+
+    if (emailResponse.error) {
+      console.error("Erro ao enviar email:", emailResponse.error);
+      throw new Error(`Erro ao enviar email: ${emailResponse.error.message}`);
+    }
 
     console.log("Email enviado com sucesso:", emailResponse);
 

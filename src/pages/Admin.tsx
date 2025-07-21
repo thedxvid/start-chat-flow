@@ -116,19 +116,26 @@ export function Admin() {
     }
 
     setCreatingUser(true);
-    const result = await createUser(newUserData);
     
-    if (result.success) {
-      toast.success("Usuário criado com sucesso!");
-      setNewUserData({
-        email: '',
-        fullName: '',
-        role: 'user',
-        planType: 'free'
-      });
-      setShowCreateUserDialog(false);
-    } else {
-      toast.error(result.error || "Falha ao criar usuário");
+    try {
+      const result = await createUser(newUserData);
+      
+      if (result.success) {
+        toast.success(result.message || "Usuário criado com sucesso!");
+        setNewUserData({
+          email: '',
+          fullName: '',
+          role: 'user',
+          planType: 'free'
+        });
+        setShowCreateUserDialog(false);
+      } else {
+        toast.error("Falha ao criar usuário");
+      }
+    } catch (error) {
+      console.error('Erro ao criar usuário:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast.error(`Erro: ${errorMessage}`);
     }
     
     setCreatingUser(false);
