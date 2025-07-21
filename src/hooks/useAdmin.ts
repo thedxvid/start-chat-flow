@@ -319,77 +319,34 @@ export function useAdmin() {
     }
   };
 
-  // Função para limpar usuários com dados incompletos
+  // Função para limpar usuários específicos via Edge Function
   const cleanupIncompleteUsers = async () => {
     try {
-      console.log('🧹 Iniciando limpeza de usuários incompletos...');
+      console.log('🧹 Iniciando limpeza via Edge Function...');
       
-      // Buscar usuários no auth que não têm profile
-      const { data: usersResponse, error: usersError } = await supabase.auth.admin.listUsers();
-      
-      if (usersError) {
-        throw usersError;
-      }
-      
-      const cleanupResults = [];
-      
-      for (const authUser of usersResponse.users) {
-        // Verificar se tem profile
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', authUser.id)
-          .single();
-        
-        if (profileError && profileError.code === 'PGRST116') {
-          // Não tem profile - dados incompletos
-          console.log(`🔍 Usuário incompleto encontrado: ${authUser.email} (${authUser.id})`);
-          
-          try {
-            // Limpar dados relacionados
-            await supabase.rpc('cleanup_incomplete_user', {
-              user_email: authUser.email
-            });
-            
-            // Remover do auth
-            const { error: deleteError } = await supabase.auth.admin.deleteUser(authUser.id);
-            
-            if (!deleteError) {
-              cleanupResults.push({
-                email: authUser.email,
-                id: authUser.id,
-                status: 'removed'
-              });
-              console.log(`✅ Usuário incompleto removido: ${authUser.email}`);
-            } else {
-              console.error(`❌ Erro ao remover ${authUser.email}:`, deleteError);
-              cleanupResults.push({
-                email: authUser.email,
-                id: authUser.id,
-                status: 'error',
-                error: deleteError.message
-              });
-            }
-          } catch (cleanupError) {
-            console.error(`❌ Erro na limpeza de ${authUser.email}:`, cleanupError);
-            cleanupResults.push({
-              email: authUser.email,
-              id: authUser.id,
-              status: 'error',
-              error: cleanupError.message
-            });
-          }
+      const { data, error } = await supabase.functions.invoke('cleanup-users', {
+        body: { 
+          action: 'cleanup_incomplete',
+          email: 'davicastropx@gmail.com' // Email específico problemático
         }
+      });
+
+      if (error) {
+        console.error('❌ Erro na Edge Function de limpeza:', error);
+        throw new Error(error.message);
       }
-      
-      // Atualizar lista de usuários
-      await fetchUsers();
-      
-      return {
-        success: true,
-        message: `Limpeza concluída. ${cleanupResults.filter(r => r.status === 'removed').length} usuários incompletos removidos.`,
-        details: cleanupResults
-      };
+
+      if (data?.success) {
+        // Atualizar lista de usuários
+        await fetchUsers();
+        
+        return {
+          success: true,
+          message: data.message || 'Limpeza concluída com sucesso'
+        };
+      }
+
+      throw new Error(data?.error || 'Erro na limpeza');
       
     } catch (error) {
       console.error('💥 Erro na limpeza de usuários incompletos:', error);

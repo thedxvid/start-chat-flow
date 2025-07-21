@@ -30,6 +30,7 @@ import {
   Activity,
   BarChart3,
   UserPlus,
+  Settings,
   Wrench,
   ArrowLeft,
   Home
@@ -627,7 +628,7 @@ export function Admin() {
                     variant="outline"
                     size="sm"
                   >
-                    <Wrench className="h-4 w-4 mr-2" />
+                    <Settings className="h-4 w-4 mr-2" />
                     Limpar Usuários Incompletos
                   </Button>
                 </div>
