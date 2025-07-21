@@ -160,7 +160,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      create_admin_user: {
+      create_user_admin_final: {
         Args: {
           user_email: string
           user_password: string
@@ -170,14 +170,18 @@ export type Database = {
         }
         Returns: Json
       }
-      create_admin_user_v3: {
-        Args: {
-          user_email: string
-          user_full_name: string
-          user_role?: string
-          plan_type?: string
-        }
-        Returns: Json
+      get_admin_users_final: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          user_id: string
+          email: string
+          full_name: string
+          role: string
+          plan_type: string
+          subscription_status: string
+          created_at: string
+          last_sign_in_at: string
+        }[]
       }
       get_admin_users_v3: {
         Args: Record<PropertyKey, never>
@@ -200,6 +204,10 @@ export type Database = {
       make_user_admin: {
         Args: { user_email: string }
         Returns: undefined
+      }
+      make_user_admin_final: {
+        Args: { user_email: string }
+        Returns: Json
       }
     }
     Enums: {
