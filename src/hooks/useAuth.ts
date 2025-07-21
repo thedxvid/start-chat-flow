@@ -3,6 +3,7 @@ import { useState, useEffect, createContext, useContext } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { sendWelcomeEmail, sendAdminNotification } from '@/lib/resend';
 
 interface AuthContextType {
   user: User | null;
@@ -165,7 +166,7 @@ export const useAuthProvider = () => {
   const signUp = async (email: string, password: string, fullName: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -175,6 +176,33 @@ export const useAuthProvider = () => {
         },
       },
     });
+
+    // Se o cadastro foi bem-sucedido, enviar email de boas-vindas
+    if (!error && data.user && data.user.email) {
+      try {
+        // Enviar email de boas-vindas
+        const emailResult = await sendWelcomeEmail(data.user.email, fullName);
+        
+        if (emailResult.success) {
+          console.log('Email de boas-vindas enviado com sucesso');
+        } else {
+          console.error('Erro ao enviar email de boas-vindas:', emailResult.error);
+        }
+
+        // Notificar admin sobre novo usuário
+        await sendAdminNotification('Novo usuário cadastrado', {
+          email: data.user.email,
+          fullName: fullName,
+          userId: data.user.id,
+          createdAt: new Date().toISOString()
+        });
+
+      } catch (emailError) {
+        console.error('Erro no envio de emails:', emailError);
+        // Não retornar erro para não quebrar o fluxo de cadastro
+      }
+    }
+    
     return { error };
   };
 
