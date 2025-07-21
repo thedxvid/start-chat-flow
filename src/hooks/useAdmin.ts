@@ -101,10 +101,9 @@ export function useAdmin() {
 
   const createUser = async (userData: CreateUserData) => {
     try {
-      // Gerar senha temporária
-      const tempPassword = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-2).toUpperCase();
+      console.log('Criando usuário:', userData);
       
-      // Usar nova função corrigida v3 - cast para any para contornar tipos
+      // Usar função corrigida v3
       const { data, error } = await (supabase as any).rpc('create_admin_user_v3', {
         user_email: userData.email,
         user_full_name: userData.fullName,
@@ -113,23 +112,27 @@ export function useAdmin() {
       });
 
       if (error) {
-        console.error('Supabase RPC error:', error);
+        console.error('Erro RPC Supabase:', error);
         throw new Error(`Erro na função do banco: ${error.message}`);
       }
 
       if (!data || !data.success) {
         const errorMsg = data?.error || 'Falha ao criar usuário - resposta inválida';
-        console.error('Admin user creation failed:', data);
+        console.error('Criação de usuário admin falhou:', data);
         throw new Error(errorMsg);
       }
 
-      // Enviar email com credenciais
+      console.log('Usuário criado com sucesso:', data);
+
+      // Enviar email com credenciais usando a edge function
       try {
+        console.log('Enviando email com credenciais...');
+        
         const { data: emailData, error: emailError } = await supabase.functions.invoke('send-user-credentials', {
           body: {
             email: userData.email,
             fullName: userData.fullName,
-            tempPassword: tempPassword,
+            tempPassword: 'TEMP-' + Math.random().toString(36).slice(-8).toUpperCase(),
             role: userData.role || 'user',
             planType: userData.planType || 'free'
           }
@@ -137,33 +140,39 @@ export function useAdmin() {
 
         if (emailError) {
           console.error('Erro ao enviar email com credenciais:', emailError);
+          // Não falhar a criação do usuário por causa do email
         } else {
           console.log('Email com credenciais enviado com sucesso:', emailData);
         }
       } catch (emailError) {
         console.error('Erro ao invocar função de email:', emailError);
+        // Não falhar a criação do usuário por causa do email
       }
 
       // Notificar admin sobre criação de usuário
-      await sendAdminNotification('Usuário criado via painel admin', {
-        newUser: {
-          email: userData.email,
-          fullName: userData.fullName,
-          role: userData.role || 'user',
-          planType: userData.planType || 'free'
-        },
-        createdBy: user?.email,
-        timestamp: new Date().toISOString()
-      });
+      try {
+        await sendAdminNotification('Usuário criado via painel admin', {
+          newUser: {
+            email: userData.email,
+            fullName: userData.fullName,
+            role: userData.role || 'user',
+            planType: userData.planType || 'free'
+          },
+          createdBy: user?.email,
+          timestamp: new Date().toISOString()
+        });
+      } catch (notificationError) {
+        console.error('Erro ao enviar notificação admin:', notificationError);
+      }
 
       await fetchUsers();
       
       return { 
         success: true, 
-        message: `Usuário criado com sucesso! Credenciais enviadas para ${userData.email}. Senha temporária: ${tempPassword}`
+        message: `Usuário ${userData.fullName} criado com sucesso! Email com credenciais enviado para ${userData.email}.`
       };
     } catch (error) {
-      console.error('Error creating user:', error);
+      console.error('Erro ao criar usuário:', error);
       return { success: false, error: error.message };
     }
   };
@@ -246,7 +255,7 @@ export function useAdmin() {
 
   const fetchUsers = async () => {
     try {
-      // Usar nova função RPC corrigida v3 - cast para any para contornar tipos
+      // Usar nova função RPC corrigida v3
       const { data: adminUsers, error } = await (supabase as any).rpc('get_admin_users_v3');
       
       if (error) {
