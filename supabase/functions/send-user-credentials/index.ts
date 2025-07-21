@@ -161,7 +161,7 @@ serve(async (req: Request): Promise<Response> => {
           </div>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${siteUrl || window?.location?.origin || "https://your-domain.com"}/auth" 
+            <a href="${siteUrl || "https://your-domain.com"}/auth" 
                style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
               Acessar o Sistema
             </a>
