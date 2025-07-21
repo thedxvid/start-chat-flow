@@ -160,6 +160,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_incomplete_user: {
+        Args: { user_email: string }
+        Returns: undefined
+      }
       get_admin_users_final: {
         Args: Record<PropertyKey, never>
         Returns: {

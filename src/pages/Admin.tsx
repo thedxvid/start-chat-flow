@@ -30,7 +30,7 @@ import {
   Activity,
   BarChart3,
   UserPlus,
-
+  Wrench,
   ArrowLeft,
   Home
 } from 'lucide-react';
@@ -47,7 +47,8 @@ export function Admin() {
     createUser, 
     deleteUser, 
     updateUserSubscription,
-    fetchUsers 
+    fetchUsers,
+    cleanupIncompleteUsers
   } = useAdmin();
   
   const [newAdminEmail, setNewAdminEmail] = useState('');
@@ -158,6 +159,16 @@ export function Admin() {
       toast.success("Assinatura atualizada com sucesso");
     } else {
       toast.error(result.error || "Falha ao atualizar assinatura");
+    }
+  };
+
+  const handleCleanupIncompleteUsers = async () => {
+    const result = await cleanupIncompleteUsers();
+    
+    if (result.success) {
+      toast.success(result.message);
+    } else {
+      toast.error(result.error || "Falha na limpeza de usuários");
     }
   };
 
@@ -604,10 +615,22 @@ export function Admin() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Administradores Atuais</CardTitle>
-                <CardDescription>
-                  Lista de todos os administradores do sistema
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Administradores Atuais</CardTitle>
+                    <CardDescription>
+                      Lista de todos os administradores do sistema
+                    </CardDescription>
+                  </div>
+                  <Button 
+                    onClick={handleCleanupIncompleteUsers}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Wrench className="h-4 w-4 mr-2" />
+                    Limpar Usuários Incompletos
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">

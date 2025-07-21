@@ -59,7 +59,7 @@ serve(async (req) => {
 
     console.log("🔍 Verificando se usuário já existe...");
 
-    // Check if user already exists
+    // Check if user already exists AND get user details
     const { data: existingUser, error: checkError } = await supabaseAdmin.auth.admin.listUsers();
     
     if (checkError) {
@@ -70,17 +70,66 @@ serve(async (req) => {
       );
     }
 
-    const userExists = existingUser.users.some(user => user.email === email);
+    const userExists = existingUser.users.find(user => user.email === email);
     
     if (userExists) {
-      console.log("⚠️ Usuário já existe:", email);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Usuário já existe com este email',
-          suggestion: 'Use a função de redefinir senha ou escolha outro email'
-        }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.log("⚠️ Usuário já existe:", email, "ID:", userExists.id);
+      
+      // Verificar se tem profile completo
+      const { data: profileData, error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userExists.id)
+        .single();
+      
+      if (profileError && profileError.code === 'PGRST116') {
+        // Usuário existe mas não tem profile - dados incompletos, vamos limpar e recriar
+        console.log("🧹 Usuário existe mas com dados incompletos. Limpando...");
+        
+        try {
+          // Limpar dados relacionados via função SQL
+          const { error: cleanupError } = await supabaseAdmin.rpc('cleanup_incomplete_user', {
+            user_email: email
+          });
+          
+          if (cleanupError) {
+            console.error("❌ Erro na limpeza SQL:", cleanupError);
+          }
+          
+          // Remover usuário do auth
+          const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userExists.id);
+          if (deleteError) {
+            console.error("❌ Erro ao remover usuário incompleto:", deleteError);
+            return new Response(
+              JSON.stringify({ 
+                error: `Email já está em uso. Erro na limpeza: ${deleteError.message}`,
+                suggestion: 'Use outro email ou contate o administrador'
+              }),
+              { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          } else {
+            console.log("✅ Usuário incompleto removido, prosseguindo com criação...");
+          }
+        } catch (cleanupError) {
+          console.error("❌ Erro na limpeza:", cleanupError);
+          return new Response(
+            JSON.stringify({ 
+              error: 'Email já está em uso. Erro na limpeza de dados. Contate o suporte.',
+              suggestion: 'Use outro email ou contate o administrador'
+            }),
+            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } else {
+        // Usuário existe e tem profile completo
+        return new Response(
+          JSON.stringify({ 
+            error: 'Usuário já existe com este email e tem dados completos',
+            suggestion: 'Use a função de redefinir senha ou escolha outro email'
+          }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     console.log("✅ Email disponível, criando usuário...");
