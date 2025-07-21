@@ -1,221 +1,279 @@
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/hooks/useAuth';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, Crown, Key } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, Lock, User } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Auth() {
-  const { user, loading, signIn, signUp } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [accessCode, setAccessCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  const { signIn, signUp } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
-  
-  // Login form state
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  
-  // Signup form state
-  const [signupEmail, setSignupEmail] = useState('');
-  const [signupPassword, setSignupPassword] = useState('');
-  const [signupName, setSignupName] = useState('');
 
-  // Redirect if already authenticated
-  if (!loading && user) {
-    return <Navigate to="/" replace />;
-  }
+  // Função para validar código de acesso no banco de dados
+  const validateAccessCode = async (code: string, customerEmail: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('access_code, status, customer_email, expires_at')
+        .eq('access_code', code.toUpperCase())
+        .eq('status', 'active')
+        .single();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
+      if (error) {
+        console.error('Erro ao validar código:', error);
+        return false;
+      }
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+      // Verificar se o código existe e está ativo
+      if (!data) {
+        return false;
+      }
 
-    const { error } = await signIn(loginEmail, loginPassword);
-    
-    if (error) {
-      toast({
-        title: 'Erro no login',
-        description: error.message === 'Invalid login credentials' 
-          ? 'Email ou senha incorretos.' 
-          : 'Ocorreu um erro ao fazer login.',
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Login realizado com sucesso!',
-        description: 'Bem-vindo ao Sistema Start.',
-      });
+      // Verificar se ainda não expirou
+      if (data.expires_at && new Date(data.expires_at) < new Date()) {
+        return false;
+      }
+
+      // Se o email for fornecido, verificar se corresponde
+      if (customerEmail && data.customer_email && data.customer_email !== customerEmail) {
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Erro na validação do código:', error);
+      return false;
     }
-    
-    setIsLoading(false);
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setLoading(true);
+    setError('');
 
-    const { error } = await signUp(signupEmail, signupPassword, signupName);
+    const { error } = await signIn(email, password);
     
     if (error) {
+      setError(error.message);
       toast({
-        title: 'Erro no cadastro',
-        description: error.message === 'User already registered' 
-          ? 'Este email já está cadastrado.' 
-          : 'Ocorreu um erro ao criar a conta.',
-        variant: 'destructive',
+        title: "Erro no login",
+        description: error.message,
+        variant: "destructive",
       });
     } else {
       toast({
-        title: 'Conta criada com sucesso!',
-        description: 'Verifique seu email para confirmar a conta.',
+        title: "Login realizado com sucesso!",
+        description: "Bem-vindo de volta!",
+      });
+      navigate('/');
+    }
+    
+    setLoading(false);
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    // Verificar código de acesso no banco de dados
+    const isValidCode = await validateAccessCode(accessCode, email);
+    
+    if (!isValidCode) {
+      setError('Código de acesso inválido ou expirado. Verifique seu email após o pagamento ou entre em contato com o suporte.');
+      setLoading(false);
+      toast({
+        title: "Código de acesso inválido",
+        description: "Código inválido ou expirado. Verifique seu email após o pagamento.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await signUp(email, password, fullName);
+    
+    if (error) {
+      setError(error.message);
+      toast({
+        title: "Erro no cadastro",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      // Atualizar o registro da assinatura com o user_id após o cadastro
+      try {
+        await supabase
+          .from('subscriptions')
+          .update({ 
+            user_email_registered: email,
+            registration_completed_at: new Date().toISOString()
+          })
+          .eq('access_code', accessCode.toUpperCase());
+      } catch (updateError) {
+        console.error('Erro ao atualizar registro de assinatura:', updateError);
+      }
+
+      toast({
+        title: "Cadastro realizado!",
+        description: "Verifique seu email para confirmar a conta.",
       });
     }
     
-    setIsLoading(false);
+    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-subtle p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Sistema Start</CardTitle>
-          <CardDescription>
-            Acesse sua conta ou crie uma nova
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="signup">Cadastro</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="login">
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <Crown className="h-12 w-12 text-primary mx-auto mb-4" />
+          <h1 className="text-3xl font-bold text-foreground">Sistema Start</h1>
+          <p className="text-muted-foreground">Mentoria Expert em Marketing Digital</p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Acesso ao Sistema</CardTitle>
+            <CardDescription>
+              Entre com sua conta ou cadastre-se com seu código de acesso
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="signin" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="signin">Entrar</TabsTrigger>
+                <TabsTrigger value="signup">Cadastrar</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="signin">
+                <form onSubmit={handleSignIn} className="space-y-4">
+                  <div>
+                    <Label htmlFor="signin-email">Email</Label>
                     <Input
-                      id="login-email"
+                      id="signin-email"
                       type="email"
-                      placeholder="seu@email.com"
-                      value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
-                      className="pl-10"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       required
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="login-password">Senha</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <Label htmlFor="signin-password">Senha</Label>
                     <Input
-                      id="login-password"
+                      id="signin-password"
                       type="password"
-                      placeholder="Sua senha"
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      className="pl-10"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       required
                     />
                   </div>
-                </div>
-                <Button 
-                  type="submit" 
-                  className="w-full bg-gradient-primary hover:bg-primary-hover"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Entrando...
-                    </>
-                  ) : (
-                    'Entrar'
-                  )}
-                </Button>
-              </form>
-            </TabsContent>
-            
-            <TabsContent value="signup">
-              <form onSubmit={handleSignup} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Nome completo</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Entrar
+                  </Button>
+                </form>
+              </TabsContent>
+
+              <TabsContent value="signup">
+                <form onSubmit={handleSignUp} className="space-y-4">
+                  <Alert className="border-amber-200 bg-amber-50 text-amber-800">
+                    <Key className="h-4 w-4" />
+                    <AlertDescription>
+                      Cadastro disponível apenas para usuários com assinatura ativa. 
+                      Seu código de acesso foi enviado por email após o pagamento.
+                    </AlertDescription>
+                  </Alert>
+
+                  <div>
+                    <Label htmlFor="access-code">Código de Acesso *</Label>
+                    <Input
+                      id="access-code"
+                      type="text"
+                      placeholder="Ex: START-ABC12345"
+                      value={accessCode}
+                      onChange={(e) => setAccessCode(e.target.value)}
+                      required
+                      className="font-mono"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Código enviado por email após confirmação do pagamento
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="signup-name">Nome Completo</Label>
                     <Input
                       id="signup-name"
                       type="text"
-                      placeholder="Seu nome completo"
-                      value={signupName}
-                      onChange={(e) => setSignupName(e.target.value)}
-                      className="pl-10"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
                       required
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <Label htmlFor="signup-email">Email</Label>
                     <Input
                       id="signup-email"
                       type="email"
-                      placeholder="seu@email.com"
-                      value={signupEmail}
-                      onChange={(e) => setSignupEmail(e.target.value)}
-                      className="pl-10"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       required
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Use o mesmo email do pagamento
+                    </p>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Senha</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <Label htmlFor="signup-password">Senha</Label>
                     <Input
                       id="signup-password"
                       type="password"
-                      placeholder="Mínimo 6 caracteres"
-                      value={signupPassword}
-                      onChange={(e) => setSignupPassword(e.target.value)}
-                      className="pl-10"
-                      minLength={6}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       required
+                      minLength={6}
                     />
                   </div>
-                </div>
-                <Button 
-                  type="submit" 
-                  className="w-full bg-gradient-primary hover:bg-primary-hover"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Criando conta...
-                    </>
-                  ) : (
-                    'Criar conta'
-                  )}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Cadastrar
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+
+            {error && (
+              <Alert variant="destructive" className="mt-4">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="mt-6 text-center">
+              <Button 
+                variant="link" 
+                onClick={() => navigate('/landing')}
+                className="text-primary"
+              >
+                Não tem uma assinatura? Ver planos
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

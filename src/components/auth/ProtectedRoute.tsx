@@ -1,6 +1,6 @@
 
 import { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, Lock } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading, hasAccess } = useAuth();
+  const navigate = useNavigate();
 
   if (loading) {
     return (
@@ -44,7 +45,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
               Confirme seu pagamento ou entre em contato com o suporte se você já pagou.
             </p>
             <Button 
-              onClick={() => window.location.href = '/landing'}
+              onClick={() => navigate('/landing')}
               className="w-full"
             >
               Ver Planos

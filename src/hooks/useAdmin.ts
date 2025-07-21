@@ -102,48 +102,25 @@ export function useAdmin() {
 
   const createUser = async (userData: CreateUserData) => {
     try {
-      // Create user via Supabase Auth Admin API
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: userData.email,
-        password: userData.password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: userData.fullName
-        }
+      // Usar função RPC em vez de auth.admin (que requer service_role)
+      const { data, error } = await supabase.rpc('create_admin_user', {
+        user_email: userData.email,
+        user_password: userData.password,
+        user_full_name: userData.fullName,
+        user_role: userData.role || 'user',
+        plan_type: userData.planType || 'free'
       });
 
-      if (authError) {
-        throw authError;
+      if (error) {
+        throw error;
       }
 
-      if (!authData.user) {
-        throw new Error('Failed to create user');
-      }
-
-      // Set role if specified
-      if (userData.role === 'admin') {
-        await supabase.rpc('make_user_admin', {
-          user_email: userData.email
-        });
-      }
-
-      // Create subscription if plan type specified
-      if (userData.planType && userData.planType !== 'free') {
-        const expirationDate = new Date();
-        expirationDate.setDate(expirationDate.getDate() + 30); // 30 days from now
-
-        await supabase
-          .from('subscriptions')
-          .insert({
-            user_id: authData.user.id,
-            plan_type: userData.planType,
-            status: 'active',
-            expires_at: expirationDate.toISOString()
-          });
+      if (!data.success) {
+        throw new Error(data.error || 'Falha ao criar usuário');
       }
 
       // Enviar email de boas-vindas se solicitado
-      if (userData.sendWelcomeEmail) {
+      if (userData.sendWelcomeEmail !== false) {
         try {
           const emailResult = await sendWelcomeEmail(userData.email, userData.fullName);
           if (!emailResult.success) {
@@ -167,7 +144,11 @@ export function useAdmin() {
       });
 
       await fetchUsers();
-      return { success: true, user: authData.user };
+      
+      return { 
+        success: true, 
+        message: data.message || 'Usuário criado com sucesso! Ele receberá instruções por email.'
+      };
     } catch (error) {
       console.error('Error creating user:', error);
       return { success: false, error: error.message };

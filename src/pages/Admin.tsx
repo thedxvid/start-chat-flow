@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/hooks/useAdmin';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,10 +31,13 @@ import {
   BarChart3,
   UserPlus,
   Eye,
-  EyeOff
+  EyeOff,
+  ArrowLeft,
+  Home
 } from 'lucide-react';
 
 export function Admin() {
+  const navigate = useNavigate();
   const { 
     isAdmin, 
     loading, 
@@ -195,14 +199,31 @@ export function Admin() {
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <Shield className="h-6 w-6" />
-            <h1 className="text-2xl font-bold">Painel de Administração</h1>
+          <div className="flex items-center gap-4">
+            <Button 
+              onClick={() => navigate('/')} 
+              variant="ghost" 
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Voltar ao Dashboard
+            </Button>
+            <div className="flex items-center gap-2">
+              <Shield className="h-6 w-6" />
+              <h1 className="text-2xl font-bold">Painel de Administração</h1>
+            </div>
           </div>
-          <Button onClick={() => fetchUsers()} variant="outline">
-            <Activity className="h-4 w-4 mr-2" />
-            Atualizar Dados
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => navigate('/')} variant="outline" size="sm">
+              <Home className="h-4 w-4 mr-2" />
+              Dashboard
+            </Button>
+            <Button onClick={() => fetchUsers()} variant="outline">
+              <Activity className="h-4 w-4 mr-2" />
+              Atualizar Dados
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
