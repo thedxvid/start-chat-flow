@@ -47,39 +47,116 @@ export type Database = {
         }
         Relationships: []
       }
-      profiles: {
+      email_logs: {
         Row: {
-          admin_email: string | null
-          avatar_url: string | null
-          created_at: string
-          full_name: string | null
+          created_at: string | null
+          email_type: string
+          error_message: string | null
           id: string
-          is_admin_created: boolean | null
-          temp_id: string | null
-          updated_at: string
+          max_retries: number | null
+          message_id: string | null
+          recipient_email: string
+          retry_count: number | null
+          sent_at: string | null
+          status: string
+          subject: string
+          updated_at: string | null
           user_id: string | null
         }
         Insert: {
-          admin_email?: string | null
-          avatar_url?: string | null
-          created_at?: string
-          full_name?: string | null
+          created_at?: string | null
+          email_type: string
+          error_message?: string | null
           id?: string
-          is_admin_created?: boolean | null
-          temp_id?: string | null
-          updated_at?: string
+          max_retries?: number | null
+          message_id?: string | null
+          recipient_email: string
+          retry_count?: number | null
+          sent_at?: string | null
+          status?: string
+          subject: string
+          updated_at?: string | null
           user_id?: string | null
         }
         Update: {
-          admin_email?: string | null
-          avatar_url?: string | null
-          created_at?: string
-          full_name?: string | null
+          created_at?: string | null
+          email_type?: string
+          error_message?: string | null
           id?: string
-          is_admin_created?: boolean | null
-          temp_id?: string | null
-          updated_at?: string
+          max_retries?: number | null
+          message_id?: string | null
+          recipient_email?: string
+          retry_count?: number | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      email_retry_queue: {
+        Row: {
+          created_at: string | null
+          email_data: Json
+          email_log_id: string | null
+          id: string
+          next_retry_at: string
+          priority: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email_data: Json
+          email_log_id?: string | null
+          id?: string
+          next_retry_at: string
+          priority?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email_data?: Json
+          email_log_id?: string | null
+          id?: string
+          next_retry_at?: string
+          priority?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_retry_queue_email_log_id_fkey"
+            columns: ["email_log_id"]
+            isOneToOne: false
+            referencedRelation: "email_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          email: string
+          full_name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email: string
+          full_name: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string
+          full_name?: string
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -88,81 +165,107 @@ export type Database = {
           access_code: string
           created_at: string | null
           customer_email: string
-          customer_name: string | null
+          customer_name: string
           expires_at: string | null
           id: string
           kiwify_order_id: string
           plan_type: string
-          registration_completed_at: string | null
           status: string
           updated_at: string | null
-          user_email_registered: string | null
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           access_code: string
           created_at?: string | null
           customer_email: string
-          customer_name?: string | null
+          customer_name: string
           expires_at?: string | null
           id?: string
           kiwify_order_id: string
           plan_type?: string
-          registration_completed_at?: string | null
           status?: string
           updated_at?: string | null
-          user_email_registered?: string | null
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           access_code?: string
           created_at?: string | null
           customer_email?: string
-          customer_name?: string | null
+          customer_name?: string
           expires_at?: string | null
           id?: string
           kiwify_order_id?: string
           plan_type?: string
-          registration_completed_at?: string | null
           status?: string
           updated_at?: string | null
-          user_email_registered?: string | null
-          user_id?: string | null
+          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
-          created_at: string
-          id: string
+          created_at: string | null
           role: string
-          updated_at: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
-          created_at?: string
-          id?: string
+          created_at?: string | null
           role?: string
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
-          created_at?: string
-          id?: string
+          created_at?: string | null
           role?: string
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      add_to_email_retry_queue: {
+        Args: {
+          p_email_log_id: string
+          p_email_data: Json
+          p_delay_minutes?: number
+          p_priority?: number
+        }
+        Returns: string
+      }
       cleanup_incomplete_user: {
         Args: { user_email: string }
         Returns: undefined
+      }
+      create_user_admin_final: {
+        Args: {
+          user_email: string
+          user_password: string
+          user_full_name: string
+          user_role?: string
+          plan_type?: string
+        }
+        Returns: Json
       }
       get_admin_users_final: {
         Args: Record<PropertyKey, never>
@@ -191,9 +294,62 @@ export type Database = {
           created_at: string
         }[]
       }
+      get_email_logs: {
+        Args: {
+          p_user_id?: string
+          p_email_type?: string
+          p_status?: string
+          p_limit?: number
+          p_offset?: number
+          p_order_by?: string
+          p_order_direction?: string
+        }
+        Returns: {
+          id: string
+          user_id: string
+          email_type: string
+          recipient_email: string
+          subject: string
+          status: string
+          message_id: string
+          error_message: string
+          retry_count: number
+          max_retries: number
+          created_at: string
+          sent_at: string
+          updated_at: string
+          user_full_name: string
+        }[]
+      }
+      get_emails_ready_for_retry: {
+        Args: { p_limit?: number }
+        Returns: {
+          queue_id: string
+          email_log_id: string
+          email_data: Json
+          retry_count: number
+          max_retries: number
+          recipient_email: string
+          priority: number
+        }[]
+      }
       link_subscription_to_user: {
         Args: { p_access_code: string; p_user_id: string }
         Returns: boolean
+      }
+      log_email_attempt: {
+        Args: {
+          p_user_id: string
+          p_email_type: string
+          p_recipient_email: string
+          p_subject: string
+          p_status?: string
+          p_message_id?: string
+          p_error_message?: string
+          p_retry_count?: number
+          p_max_retries?: number
+        }
+        Returns: string
       }
       make_user_admin: {
         Args: { user_email: string }
@@ -202,6 +358,10 @@ export type Database = {
       make_user_admin_final: {
         Args: { user_email: string }
         Returns: Json
+      }
+      remove_from_retry_queue: {
+        Args: { p_queue_id: string }
+        Returns: boolean
       }
     }
     Enums: {
