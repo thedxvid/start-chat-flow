@@ -96,9 +96,8 @@ export function Settings() {
         .from('profiles')
         .upsert({
           user_id: user?.id,
+          email: user?.email || '',
           full_name: profileData.fullName,
-          phone: profileData.phone,
-          bio: profileData.bio,
           updated_at: new Date().toISOString()
         });
 

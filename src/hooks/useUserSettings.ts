@@ -58,6 +58,7 @@ export function useUserSettings() {
         // Criar perfil se não existir
         const newProfile = {
           user_id: user.id,
+          email: user.email || '',
           full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || ''
         };
 
