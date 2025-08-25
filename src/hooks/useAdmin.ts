@@ -215,7 +215,7 @@ export function useAdmin() {
           .eq('user_id', userId);
       } else {
         const expirationDate = new Date();
-        expirationDate.setDate(expirationDate.getDate() + 30);
+        expirationDate.setDate(expirationDate.getDate() + 180); // 6 meses de acesso
 
         // Insert or update subscription with all required fields
         await supabase

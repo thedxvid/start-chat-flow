@@ -141,10 +141,10 @@ serve(async (req) => {
     let planType = 'premium';
     let expiresAt = null;
     
-    // Set expiration date (30 days from now for premium plans)
+    // Set expiration date (180 days from now for premium plans - 6 months)
     if (webhookData.order_status === 'paid') {
       const expirationDate = new Date();
-      expirationDate.setDate(expirationDate.getDate() + 30);
+      expirationDate.setDate(expirationDate.getDate() + 180);
       expiresAt = expirationDate.toISOString();
     }
 
