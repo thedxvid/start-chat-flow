@@ -290,9 +290,7 @@ const categories = [
 ];
 
 const recursos = [
-    { label: 'Cronograma do Curso', href: '#', icon: Calendar },
     { label: 'Grupo de Networking', href: 'https://chat.whatsapp.com/GXn1tt0V4TlCiDhjN5Rohn?mode=gi_t', icon: Users },
-    { label: 'Políticas de Suporte', href: '#', icon: FileText },
 ];
 
 // ──────────────────────────────────────────────
@@ -793,9 +791,9 @@ export function Suporte() {
 
                     {/* Sidebar: Recursos + Dica + Busca Rápida (desktop) */}
                     <div className="space-y-4">
-                        {/* Recursos Úteis */}
+                        {/* Comunidade */}
                         <div className="rounded-2xl border border-border/50 bg-white p-5 sm:p-6 shadow-sm">
-                            <h3 className="font-bold text-slate-900 mb-4 sm:mb-5 text-xs sm:text-sm uppercase tracking-widest text-gold">Recursos Úteis</h3>
+                            <h3 className="font-bold text-slate-900 mb-4 sm:mb-5 text-xs sm:text-sm uppercase tracking-widest text-gold">Comunidade</h3>
                             <div className="space-y-1">
                                 {recursos.map(r => (
                                     <a
