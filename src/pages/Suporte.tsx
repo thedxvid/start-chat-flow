@@ -24,6 +24,11 @@ import {
     ChevronUp,
     Sparkles,
     Target,
+    Calendar,
+    Users,
+    FileText,
+    Image as ImageIcon,
+    Paperclip,
 } from 'lucide-react';
 import { useNathiChat } from '@/hooks/useNathiChat';
 import type { Message } from '@/types/chat';
@@ -274,6 +279,7 @@ interface SupportMessage {
     content: string;
     sender: 'user' | 'ai';
     timestamp: Date;
+    image?: string;
 }
 
 const categories = [
@@ -284,9 +290,9 @@ const categories = [
 ];
 
 const recursos = [
-    { label: 'Cronograma do Curso', href: '#' },
-    { label: 'Grupo de Networking', href: 'https://chat.whatsapp.com/GXn1tt0V4TlCiDhjN5Rohn?mode=gi_t' },
-    { label: 'Políticas de Suporte', href: '#' },
+    { label: 'Cronograma do Curso', href: '#', icon: Calendar },
+    { label: 'Grupo de Networking', href: 'https://chat.whatsapp.com/GXn1tt0V4TlCiDhjN5Rohn?mode=gi_t', icon: Users },
+    { label: 'Políticas de Suporte', href: '#', icon: FileText },
 ];
 
 // ──────────────────────────────────────────────
@@ -371,6 +377,10 @@ export function Suporte() {
     const { sendMessage, isLoading } = useNathiChat();
     const [searchQuery, setSearchQuery] = useState('');
     const [chatInput, setChatInput] = useState('');
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const floatingFileInputRef = useRef<HTMLInputElement>(null);
+    const [isFloatingChatOpen, setIsFloatingChatOpen] = useState(false);
     const [chatMessages, setChatMessages] = useState<SupportMessage[]>([
         {
             id: '0',
@@ -392,19 +402,38 @@ export function Suporte() {
         }
     }, [chatMessages]);
 
+    const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setSelectedImage(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleSendChat = async (overrideInput?: string) => {
         const text = overrideInput ?? chatInput;
-        if (!text.trim() || isLoading) return;
+        if ((!text.trim() && !selectedImage) || isLoading) return;
 
         const userMsg: SupportMessage = {
             id: Date.now().toString(),
             content: text.trim(),
             sender: 'user',
             timestamp: new Date(),
+            image: selectedImage || undefined
         };
 
         setChatMessages(prev => [...prev, userMsg]);
-        if (!overrideInput) setChatInput('');
+        if (!overrideInput) {
+            setChatInput('');
+            setSelectedImage(null);
+        }
+
+        // Reset file inputs
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        if (floatingFileInputRef.current) floatingFileInputRef.current.value = '';
 
         const history: Message[] = chatMessages.map(m => ({
             id: m.id,
@@ -495,7 +524,7 @@ export function Suporte() {
 
                 {/* ── Hero + Search ── */}
                 <div className="text-center space-y-5 py-2 sm:py-4">
-                    <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tighter uppercase italic leading-tight">
+                    <h2 className="text-3xl sm:text-4xl lg:text-[44px] font-black text-slate-900 tracking-tighter uppercase italic leading-tight">
                         O que você está{' '}
                         <span className="text-gold not-italic">buscando</span> hoje?
                     </h2>
@@ -506,7 +535,7 @@ export function Suporte() {
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                             placeholder="Pesquisar por tópico, aula ou ferramenta..."
-                            className="pl-12 pr-10 h-12 text-sm rounded-2xl border-border/60 bg-white shadow-sm focus:ring-2 focus:ring-gold/30"
+                            className="pl-12 pr-10 h-14 text-base rounded-2xl border-border/60 bg-white shadow-md focus:ring-2 focus:ring-gold/30 hover:shadow-lg transition-shadow"
                             autoComplete="off"
                         />
                         {searchQuery && (
@@ -521,16 +550,16 @@ export function Suporte() {
 
                     {/* Search hint */}
                     {!showResults && (
-                        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                            <span>Tente:</span>
+                        <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
+                            <span className="mr-1">Sugestões:</span>
                             {['tráfego pago', 'VSL', 'produto digital', 'afiliados', 'checkout'].map(term => (
-                                <span
+                                <button
                                     key={term}
-                                    className="cursor-pointer underline underline-offset-2 hover:text-gold transition-colors"
+                                    className="px-4 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm text-slate-600 font-medium hover:border-gold hover:text-gold hover:shadow-md transition-all active:scale-95"
                                     onClick={() => setSearchQuery(term)}
                                 >
                                     {term}
-                                </span>
+                                </button>
                             ))}
                         </div>
                     )}
@@ -585,6 +614,9 @@ export function Suporte() {
                     </div>
                 )}
 
+                {/* ── Visual Separator ── */}
+                {showResults && <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent opacity-50 my-4" />}
+
                 {/* ── Categories (only when not searching) ── */}
                 {!showResults && (
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
@@ -592,7 +624,7 @@ export function Suporte() {
                             <button
                                 key={cat.title}
                                 onClick={() => handleCategoryClick(cat.query)}
-                                className="group text-left p-4 sm:p-6 rounded-2xl bg-white h-full hover:shadow-[0_0_30px_rgba(253,185,49,0.2)] hover:scale-[1.02] transition-all duration-300 cursor-pointer border border-border/50"
+                                className="group text-left p-4 sm:p-6 rounded-2xl bg-white h-full hover:shadow-[0_8px_30px_rgba(253,185,49,0.15)] hover:border-gold/50 hover:scale-[1.02] transition-all duration-300 cursor-pointer border border-border/50"
                             >
                                 <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl ${cat.iconBg} flex items-center justify-center mb-3 sm:mb-5`}>
                                     <cat.icon className={`h-5 w-5 sm:h-6 sm:w-6 ${cat.iconColor}`} />
@@ -606,6 +638,9 @@ export function Suporte() {
                         ))}
                     </div>
                 )}
+
+                {/* ── Visual Separator ── */}
+                <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent opacity-50 my-4" />
 
                 {/* ── Bottom Grid: Chat + Recursos ── */}
                 <div ref={chatScrollRef} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -662,6 +697,13 @@ export function Suporte() {
                                             : 'bg-muted/60 text-foreground rounded-bl-md'
                                             }`}
                                     >
+                                        {msg.image && (
+                                            <img
+                                                src={msg.image}
+                                                alt="Upload do usuário"
+                                                className="max-w-full rounded-lg mb-2 max-h-[200px] object-cover"
+                                            />
+                                        )}
                                         {msg.sender === 'ai' ? (
                                             <div className="leading-relaxed">{formatMessage(msg.content)}</div>
                                         ) : (
@@ -692,28 +734,59 @@ export function Suporte() {
 
                         {/* Input */}
                         <div className="p-3 sm:p-4 border-t border-border/50 bg-slate-50/50">
-                            <div className="flex gap-2 items-end">
-                                <Textarea
-                                    value={chatInput}
-                                    onChange={e => setChatInput(e.target.value)}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder="Digite sua dúvida aqui..."
-                                    rows={1}
-                                    disabled={isLoading}
-                                    className="flex-1 resize-none min-h-[42px] max-h-[100px] text-sm rounded-xl border-border/50 bg-white text-foreground placeholder:text-slate-400 focus:border-gold/50 focus:ring-0 shadow-sm"
-                                />
-                                <Button
-                                    onClick={() => handleSendChat()}
-                                    disabled={!chatInput.trim() || isLoading}
-                                    size="sm"
-                                    className="h-[42px] w-[42px] rounded-xl p-0 flex-shrink-0 shadow-md transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 active:scale-95"
-                                    style={{
-                                        background: chatInput.trim() && !isLoading ? 'var(--gradient-gold-shine)' : '#f3f4f6',
-                                        color: chatInput.trim() && !isLoading ? 'hsl(var(--gold-foreground))' : '#9ca3af',
-                                    }}
-                                >
-                                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                                </Button>
+                            <div className="flex flex-col gap-2">
+                                {selectedImage && (
+                                    <div className="relative inline-block self-start">
+                                        <img src={selectedImage} alt="Preview" className="h-20 w-auto rounded-lg border border-border" />
+                                        <button
+                                            onClick={() => {
+                                                setSelectedImage(null);
+                                                if (fileInputRef.current) fileInputRef.current.value = '';
+                                            }}
+                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 shadow-sm hover:bg-red-600"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                )}
+                                <div className="flex gap-2 items-end">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        ref={fileInputRef}
+                                        onChange={handleImageUpload}
+                                    />
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-[42px] w-[42px] rounded-xl p-0 flex-shrink-0 text-slate-400 hover:text-gold hover:border-gold/50"
+                                        onClick={() => fileInputRef.current?.click()}
+                                    >
+                                        <ImageIcon className="h-5 w-5" />
+                                    </Button>
+                                    <Textarea
+                                        value={chatInput}
+                                        onChange={e => setChatInput(e.target.value)}
+                                        onKeyDown={handleKeyDown}
+                                        placeholder="Digite sua dúvida aqui..."
+                                        rows={1}
+                                        disabled={isLoading}
+                                        className="flex-1 resize-none min-h-[42px] max-h-[100px] text-sm rounded-xl border-border/50 bg-white text-foreground placeholder:text-slate-400 focus:border-gold/50 focus:ring-0 shadow-sm"
+                                    />
+                                    <Button
+                                        onClick={() => handleSendChat()}
+                                        disabled={(!chatInput.trim() && !selectedImage) || isLoading}
+                                        size="sm"
+                                        className="h-[42px] w-[42px] rounded-xl p-0 flex-shrink-0 shadow-md transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 active:scale-95"
+                                        style={{
+                                            background: (chatInput.trim() || selectedImage) && !isLoading ? 'var(--gradient-gold-shine)' : '#f3f4f6',
+                                            color: (chatInput.trim() || selectedImage) && !isLoading ? 'hsl(var(--gold-foreground))' : '#9ca3af',
+                                        }}
+                                    >
+                                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -732,7 +805,10 @@ export function Suporte() {
                                         rel="noopener noreferrer"
                                         className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors group border border-transparent hover:border-border/30"
                                     >
-                                        <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">{r.label}</span>
+                                        <div className="flex items-center gap-3">
+                                            {r.icon && <r.icon className="h-4 w-4 text-slate-400 group-hover:text-gold transition-colors" />}
+                                            <span className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">{r.label}</span>
+                                        </div>
                                         <ExternalLink className="h-4 w-4 text-slate-300 group-hover:text-gold transition-colors flex-shrink-0" />
                                     </a>
                                 ))}
@@ -767,6 +843,159 @@ export function Suporte() {
                         </div>
                     </div>
                 </div>
+            </div>
+
+            {/* ── Floating Chat Button & Window ── */}
+            <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4">
+                {/* Floating Window */}
+                {isFloatingChatOpen && (
+                    <div className="w-[350px] sm:w-[380px] h-[500px] bg-white rounded-2xl shadow-2xl border border-border/50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-200">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-4 py-3 bg-slate-900 text-white">
+                            <div className="flex items-center gap-3">
+                                <div className="p-1.5 rounded-lg bg-white/10">
+                                    <Bot className="h-4 w-4 text-gold" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-sm leading-tight">Aurora IA</span>
+                                    <span className="text-[10px] text-white/70 uppercase tracking-widest">Suporte 24h</span>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setIsFloatingChatOpen(false)}
+                                className="text-white/70 hover:text-white transition-colors"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        {/* Messages Area (Shared State) */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
+                            {chatMessages.map(msg => (
+                                <div
+                                    key={msg.id}
+                                    className={`flex gap-2 ${msg.sender === 'user' ? 'flex-row-reverse' : ''}`}
+                                >
+                                    {msg.sender === 'ai' && (
+                                        <div
+                                            className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                                            style={{ background: 'var(--gradient-gold)' }}
+                                        >
+                                            <Bot className="h-3 w-3" style={{ color: 'hsl(var(--gold-foreground))' }} />
+                                        </div>
+                                    )}
+                                    <div
+                                        className={`max-w-[85%] px-3 py-2 rounded-2xl text-xs sm:text-sm ${msg.sender === 'user'
+                                            ? 'bg-gradient-to-br from-primary to-primary/90 text-white rounded-br-md'
+                                            : 'bg-white border border-border/50 text-foreground rounded-bl-md shadow-sm'
+                                            }`}
+                                    >
+                                        {msg.image && (
+                                            <img
+                                                src={msg.image}
+                                                alt="Upload do usuário"
+                                                className="max-w-full rounded-lg mb-2 max-h-[200px] object-cover"
+                                            />
+                                        )}
+                                        {msg.sender === 'ai' ? (
+                                            <div className="leading-relaxed">{formatMessage(msg.content)}</div>
+                                        ) : (
+                                            <span className="whitespace-pre-wrap">{msg.content}</span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                            {isLoading && (
+                                <div className="flex gap-2">
+                                    <div className="w-6 h-6 rounded-full bg-gradient-primary flex items-center justify-center flex-shrink-0">
+                                        <Bot className="h-3 w-3 text-white" />
+                                    </div>
+                                    <div className="bg-white border border-border/50 px-3 py-2 rounded-2xl rounded-bl-md shadow-sm">
+                                        <div className="flex gap-1">
+                                            <div className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                            <div className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                            <div className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        {/* Input Area */}
+                        <div className="p-3 bg-white border-t border-border/50">
+                            {selectedImage && (
+                                <div className="relative inline-block mb-2">
+                                    <img src={selectedImage} alt="Preview" className="h-16 w-auto rounded-lg border border-border" />
+                                    <button
+                                        onClick={() => {
+                                            setSelectedImage(null);
+                                            if (floatingFileInputRef.current) floatingFileInputRef.current.value = '';
+                                        }}
+                                        className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 shadow-sm hover:bg-red-600"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </div>
+                            )}
+                            <div className="flex gap-2 items-center">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    ref={floatingFileInputRef}
+                                    onChange={handleImageUpload}
+                                />
+                                <button
+                                    className="h-10 w-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-gold hover:bg-slate-50 transition-colors"
+                                    onClick={() => floatingFileInputRef.current?.click()}
+                                >
+                                    <Paperclip className="h-5 w-5" />
+                                </button>
+                                <input
+                                    value={chatInput}
+                                    onChange={e => setChatInput(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder="Digite sua dúvida..."
+                                    disabled={isLoading}
+                                    className="flex-1 h-10 px-3 text-sm rounded-xl border border-border bg-slate-50 focus:bg-white focus:border-gold/50 focus:ring-0 outline-none transition-all"
+                                />
+                                <button
+                                    onClick={() => handleSendChat()}
+                                    disabled={(!chatInput.trim() && !selectedImage) || isLoading}
+                                    className="h-10 w-10 rounded-xl flex items-center justify-center shadow-sm disabled:opacity-50 disabled:grayscale transition-all active:scale-95"
+                                    style={{
+                                        background: (chatInput.trim() || selectedImage) && !isLoading ? 'var(--gradient-gold-shine)' : '#f3f4f6',
+                                        color: (chatInput.trim() || selectedImage) && !isLoading ? 'hsl(var(--gold-foreground))' : '#9ca3af',
+                                    }}
+                                >
+                                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Floating Button */}
+                <button
+                    onClick={() => setIsFloatingChatOpen(!isFloatingChatOpen)}
+                    className="h-14 w-14 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.15)] hover:shadow-[0_8px_30px_rgba(253,185,49,0.3)] transition-all duration-300 hover:scale-110 flex items-center justify-center relative group"
+                    style={{ background: 'var(--gradient-gold-shine)' }}
+                >
+                    {isFloatingChatOpen ? (
+                        <X className="h-6 w-6 text-[#422006]" />
+                    ) : (
+                        <MessageCircle className="h-6 w-6 text-[#422006]" />
+                    )}
+
+                    {/* Notification Badge (optional, just visual) */}
+                    {!isFloatingChatOpen && (
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white"></span>
+                        </span>
+                    )}
+                </button>
             </div>
         </div>
     );

@@ -3,6 +3,8 @@ export interface Message {
   content: string;
   sender: 'user' | 'ai';
   timestamp: Date;
+  image?: string;
+  audio?: string;
 }
 
 export interface Conversation {
