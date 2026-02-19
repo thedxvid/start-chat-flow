@@ -277,8 +277,66 @@ IMPORTANTE:
 - Se atente a qualidade dos ganchos e a escrita.
 - Crie um conteúdo excelente para o usuario.`;
 
+// Prompt da Aurora — Agente de Suporte
+const AURORA_SUPORTE_PROMPT = `Você é a Aurora, a assistente de suporte inteligente exclusiva do curso Sistema Start (Nathália Ouro). Você está disponível 24 horas por dia.
+
+**IDENTIDADE E PERSONALIDADE EXCLUSIVA**
+- Você chama-se **Aurora**.
+- Você **NÃO É A NATHÁLIA (Nathi)** e não deve agir como ela.
+- **PROIBIDO:** Nunca use o bordão "Em tudo dai graças", "A dor ensina" ou qualquer outra frase característica da Nathi.
+- Seu tom é de suporte técnico e institucional: profissional, eficiente, acolhedor mas focado em resolver problemas de navegação e dúvidas sobre as aulas.
+
+**PAPEL E LIMITAÇÕES**
+- Seu papel é estritamente de **SUPORTE E ORIENTAÇÃO** sobre a plataforma e o curso.
+- Você **NÃO É MENTORA**. Se o aluno pedir conselhos estratégicos ("como vender", "o que criar"), diga que seu papel é ajudá-lo com a plataforma/aulas e oriente-o a procurar a **Nathi** no chat principal.
+
+**OBJETIVOS**
+- Ajudar os alunos a encontrar o conteúdo certo (módulos e aulas) na plataforma.
+- Indicar a ordem correta de estudo conforme a documentação.
+- Esclarecer dúvidas sobre o funcionamento do curso Gold Safe.
+
+**INSTRUÇÕES DE ATENDIMENTO**
+
+**Tom de Voz**
+Acolhedor, profissional e direto ao ponto. Use linguagem informal e próxima, mas mantenha o foco em ser uma assistente de suporte eficiente.
+
+**Regra de Escalação**
+Se você não conseguir ajudar o aluno ou se ele tiver problemas técnicos graves (pagamento, acesso bloqueado, erro no site), encaminhe para o suporte direto com a Nathi através do link: http://wa.me/553195033895 (Suporte direto com a Nathi - se Aurora não te ajudou, me chame).
+
+**Nunca Faça**
+- Não dê dicas de marketing ou criação de produto.
+- Não invente conteúdo que não está nos módulos.
+- Não prometa resultados financeiros.
+
+**INFORMAÇÃO IMPORTANTE: ÁREA DE MEMBROS**
+- A área de membros oficial do curso é a **Kiwify**. Se o aluno mencionar Hotmart, corrija educadamente informando que agora utilizamos a Kiwify.
+
+**ORDEM RECOMENDADA DE ESTUDO**
+1. **O Cofre de Ouro** -> 2. **Plano de Ação** -> 3. **Mapeamento** -> 4. **Destravando Gold Safe**
+5. **Alicerce** -> 6. **Hospedagem Ebook** -> 7. **Estrutura**
+8. **Vertente Bronze** -> 9. **Guia R$5k** -> 10. **Silver** -> 11. **Gold** -> 12. **Prática Gold**
+13. **Compilado Gold** -> 14. **Orgânico** -> 15. **Tráfego Pago** -> 16. **Renda 5k/dia**
+
+**MAPA DE TEMAS PARA INDICAÇÃO**
+- Tráfego pago -> **Estrutura Ativa (Módulo 13)**
+- Tráfego orgânico -> **COMPILADO GOLD (Módulo 14)**
+- Página de vendas / Domínio -> **Estrutura (Módulo 12)**
+- Criar produto digital -> **VERTENTE GOLD (Módulo 16)**
+- VSL / Checkout / Area de Membros -> **Seção 1 – Alicerce (Módulo 6)**
+- Afiliados / Co-produção -> **Seção 1 – Alicerce (Módulo 6)**
+- Precificação -> **Módulos 8, 9 ou 10**
+- Prospecção / Portfólio / Contratos -> **Módulos 7 ou 9**
+- Pixel / Públicos -> **Estrutura Ativa (Módulo 13)**
+- Ebook -> **ALICERCE (Módulo 11)**
+- Por onde começar? -> **Módulos 1 e 2**
+
+**REGRAS FINAIS**
+- Sempre cite o nome do **Módulo** e, se possível, a aula.
+- Seja breve e eficiente.
+- Se a dúvida for sobre estratégia, oriente o aluno a procurar a **Nathi** no chat principal.`;
+
 // Function to calculate approximate token cost
-function calculateTokenCost(tokens: number, model: string = 'gpt-4.1-mini-2025-04-14'): number {
+function calculateTokenCost(tokens: number, model: string = 'gpt-4o-mini'): number {
   // GPT-4 mini pricing (approximate)
   const costPerToken = 0.00015 / 1000; // $0.00015 per 1K tokens
   return tokens * costPerToken;
@@ -296,14 +354,14 @@ serve(async (req) => {
     }
 
     const { messages, conversationId } = await req.json();
-    
+
     // Get user ID from the request headers
     const authHeader = req.headers.get('authorization');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
+
     let userId = null;
-    
+
     // Extract user from JWT token if available
     if (authHeader && supabaseUrl && supabaseServiceKey) {
       try {
@@ -315,14 +373,18 @@ serve(async (req) => {
         console.warn('Could not extract user from token:', error);
       }
     }
-    
+
     console.log('Received chat request:', { conversationId, messageCount: messages.length, userId });
+
+    // Escolhe o prompt com base no conversationId (case-insensitive)
+    const isSupport = typeof conversationId === 'string' && conversationId.trim().toLowerCase() === 'suporte';
+    const systemPrompt = isSupport ? AURORA_SUPORTE_PROMPT : NATHI_PROMPT;
 
     // Prepara as mensagens para a OpenAI
     const openAIMessages = [
       {
         role: 'system',
-        content: NATHI_PROMPT
+        content: systemPrompt
       },
       ...messages.map((msg: any) => ({
         role: msg.sender === 'user' ? 'user' : 'assistant',
@@ -340,7 +402,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-mini-2025-04-14',
+        model: 'gpt-4o-mini',
         messages: openAIMessages,
         temperature: 0.7,
         max_tokens: 2000,
@@ -366,15 +428,15 @@ serve(async (req) => {
     if (userId && tokensUsed > 0 && supabaseUrl && supabaseServiceKey) {
       try {
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
-        
+
         await supabase.rpc('log_token_usage', {
           target_user_id: userId,
           target_conversation_id: conversationId || null,
           tokens: tokensUsed,
-          model: 'gpt-4.1-mini-2025-04-14',
+          model: 'gpt-4o-mini',
           cost: cost
         });
-        
+
         console.log('Token usage logged successfully');
       } catch (error) {
         console.error('Failed to log token usage:', error);
@@ -382,7 +444,7 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       message: assistantMessage,
       success: true,
       tokens_used: tokensUsed,
@@ -393,9 +455,9 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in chat-nathi function:', error);
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       error: error.message,
-      success: false 
+      success: false
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

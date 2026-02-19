@@ -71,13 +71,22 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				gold: {
+					DEFAULT: 'hsl(var(--gold))',
+					light: 'hsl(var(--gold-light))',
+					dark: 'hsl(var(--gold-dark))',
+					foreground: 'hsl(var(--gold-foreground))',
 				}
 			},
 			backgroundImage: {
 				'gradient-primary': 'var(--gradient-primary)',
 				'gradient-background': 'var(--gradient-background)',
-				'gradient-chat': 'var(--gradient-chat)'
+				'gradient-chat': 'var(--gradient-chat)',
+				'gradient-gold': 'var(--gradient-gold)',
+				'gradient-gold-shine': 'var(--gradient-gold-shine)',
 			},
+
 			boxShadow: {
 				'elegant': 'var(--shadow-elegant)',
 				'chat': 'var(--shadow-chat)',

@@ -13,6 +13,7 @@ import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 import { Admin } from "./pages/Admin";
 import { Settings } from "./pages/Settings";
+import { Suporte } from "./pages/Suporte";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <Settings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/suporte"
+                element={
+                  <ProtectedRoute>
+                    <Suporte />
                   </ProtectedRoute>
                 }
               />

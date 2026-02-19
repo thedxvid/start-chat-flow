@@ -23,6 +23,12 @@
     --primary-foreground: 0 0% 100%;
     --primary-hover: 175 65% 40%;
 
+    /* Dourado Aurora - premium accent */
+    --gold: 43 90% 52%;
+    --gold-light: 45 95% 65%;
+    --gold-dark: 38 85% 40%;
+    --gold-foreground: 30 40% 15%;
+
     --secondary: 210 45% 92%;
     --secondary-foreground: 215 25% 25%;
 
@@ -51,6 +57,8 @@
     --gradient-primary: linear-gradient(135deg, hsl(175 60% 45%), hsl(200 55% 50%));
     --gradient-background: linear-gradient(180deg, hsl(220 15% 97%), hsl(210 20% 95%));
     --gradient-chat: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 15% 98%));
+    --gradient-gold: linear-gradient(135deg, hsl(43 90% 52%), hsl(38 85% 42%));
+    --gradient-gold-shine: linear-gradient(135deg, hsl(45 95% 65%), hsl(43 90% 52%), hsl(38 85% 40%));
 
     /* Sombras */
     --shadow-elegant: 0 4px 20px hsl(175 60% 45% / 0.1);

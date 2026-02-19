@@ -7,14 +7,14 @@ export const useNathiChat = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const sendMessage = useCallback(async (
-    messages: Message[], 
+    messages: Message[],
     conversationId?: string
   ): Promise<string | null> => {
     setIsLoading(true);
-    
+
     try {
-      console.log('Enviando mensagem para Nathi:', { conversationId, messageCount: messages.length });
-      
+      console.log('Enviando mensagem para', conversationId === 'suporte' ? 'Aurora' : 'Nathi', ':', { conversationId, messageCount: messages.length });
+
       const { data, error } = await supabase.functions.invoke('chat-nathi', {
         body: {
           messages,
@@ -32,12 +32,12 @@ export const useNathiChat = () => {
         throw new Error(data?.error || 'Erro desconhecido');
       }
 
-      console.log('Resposta da Nathi recebida com sucesso');
+      console.log('Resposta recebida com sucesso');
       return data.message;
 
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
-      toast.error('Erro ao conversar com a mentora. Tente novamente.');
+      toast.error('Erro ao conversar com a IA. Tente novamente.');
       return null;
     } finally {
       setIsLoading(false);

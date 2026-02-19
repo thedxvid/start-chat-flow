@@ -1,10 +1,56 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Bot, User, Loader2, Sparkles, Menu, X } from 'lucide-react';
+
+// Formata markdown básico: **negrito**, listas numeradas e quebras de linha
+function formatMessage(text: string): React.ReactNode[] {
+  const lines = text.split('\n');
+  const result: React.ReactNode[] = [];
+
+  lines.forEach((line, lineIndex) => {
+    if (line.trim() === '') {
+      result.push(<br key={`br-${lineIndex}`} />);
+      return;
+    }
+
+    // Detecta item de lista numerada: "1. texto", "2. texto", etc.
+    const numberedMatch = line.match(/^(\d+)\.\s+(.+)$/);
+    if (numberedMatch) {
+      const [, num, content] = numberedMatch;
+      result.push(
+        <div key={`line-${lineIndex}`} className="flex gap-2 mt-1 first:mt-0">
+          <span className="font-bold text-primary flex-shrink-0">{num}.</span>
+          <span>{parseBold(content)}</span>
+        </div>
+      );
+      return;
+    }
+
+    // Linha normal com possível negrito
+    result.push(
+      <span key={`line-${lineIndex}`} className="block leading-relaxed">
+        {parseBold(line)}
+      </span>
+    );
+  });
+
+  return result;
+}
+
+// Converte **texto** em <strong>
+function parseBold(text: string): React.ReactNode[] {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} className="font-bold">{part.slice(2, -2)}</strong>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
 
 interface Message {
   id: string;
@@ -22,10 +68,10 @@ interface ChatAreaProps {
   onToggleSidebar?: () => void;
 }
 
-export function ChatArea({ 
-  conversationId, 
-  messages, 
-  onSendMessage, 
+export function ChatArea({
+  conversationId,
+  messages,
+  onSendMessage,
   isTyping = false,
   isSidebarOpen = false,
   onToggleSidebar
@@ -57,7 +103,7 @@ export function ChatArea({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
-    
+
     // Auto-resize textarea
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -72,36 +118,36 @@ export function ChatArea({
     if (isNaN(dateObj.getTime())) {
       return 'Agora';
     }
-    return dateObj.toLocaleTimeString('pt-BR', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return dateObj.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
   const groupMessagesByDate = (messages: Message[]) => {
     const groups: { [key: string]: Message[] } = {};
-    
+
     messages.forEach(message => {
       // ✅ CORREÇÃO: Tratamento seguro do timestamp
       const timestamp = typeof message.timestamp === 'string' ? new Date(message.timestamp) : message.timestamp;
-      
+
       if (isNaN(timestamp.getTime())) {
         // Se timestamp inválido, usar data atual
         timestamp.setTime(Date.now());
       }
-      
+
       const dateKey = timestamp.toLocaleDateString('pt-BR', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric'
       });
-      
+
       if (!groups[dateKey]) {
         groups[dateKey] = [];
       }
       groups[dateKey].push(message);
     });
-    
+
     return groups;
   };
 
@@ -117,7 +163,7 @@ export function ChatArea({
               Bem-vindo ao Start Chat
             </h2>
             <p className="text-muted-foreground mb-6 leading-relaxed">
-              Sua mentora expert está pronta para ajudar você a criar produtos digitais incríveis. 
+              A Nathi, sua mentora expert, está pronta para ajudar você a criar produtos digitais incríveis.
               Inicie uma nova conversa para começar!
             </p>
             <div className="flex items-center justify-center gap-2 flex-wrap">
@@ -155,11 +201,11 @@ export function ChatArea({
               {isSidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
             </Button>
           )}
-          
+
           <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-gradient-primary flex items-center justify-center shadow-lg">
-            <img 
-              src="/lovable-uploads/2004ae96-8379-47a2-9892-02c1385bf95c.png" 
-              alt="Mentora Expert" 
+            <img
+              src="/lovable-uploads/2004ae96-8379-47a2-9892-02c1385bf95c.png"
+              alt="Mentora Expert"
               className="w-full h-full object-cover"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
@@ -168,9 +214,15 @@ export function ChatArea({
             />
           </div>
           <div className="flex-1">
-            <h2 className="font-semibold text-foreground text-sm sm:text-base">Nathi - Mentora Expert</h2>
+            <h2 className="font-semibold text-foreground text-sm sm:text-base flex items-center gap-1.5">
+              Nathi
+              <span className="text-xs font-normal px-1.5 py-0.5 rounded-full"
+                style={{ background: 'var(--gradient-gold)', color: 'hsl(var(--gold-foreground))' }}>
+                IA
+              </span>
+            </h2>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'hsl(var(--gold))' }}></div>
               <p className="text-xs sm:text-sm text-muted-foreground">
                 {isTyping ? 'Digitando...' : 'Online agora'}
               </p>
@@ -197,12 +249,12 @@ export function ChatArea({
                 </Badge>
                 <Separator className="flex-1" />
               </div>
-              
+
               <div className="space-y-4">
                 {dayMessages.map((message, index) => {
                   const isFirst = index === 0 || dayMessages[index - 1].sender !== message.sender;
                   const isLast = index === dayMessages.length - 1 || dayMessages[index + 1].sender !== message.sender;
-                  
+
                   return (
                     <div
                       key={message.id}
@@ -210,17 +262,16 @@ export function ChatArea({
                     >
                       {/* Avatar */}
                       {isFirst && (
-                        <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-md ${
-                          message.sender === 'user' 
-                            ? 'bg-gradient-to-br from-primary to-primary/80 text-white' 
-                            : 'bg-gradient-primary overflow-hidden'
-                        }`}>
+                        <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-md ${message.sender === 'user'
+                          ? 'bg-gradient-to-br from-primary to-primary/80 text-white'
+                          : 'bg-gradient-primary overflow-hidden'
+                          }`}>
                           {message.sender === 'user' ? (
                             <User className="h-3 w-3 sm:h-4 sm:w-4" />
                           ) : (
-                            <img 
-                              src="/lovable-uploads/6e7516e8-25b6-4f1e-8ceb-de974ccd23d8.png" 
-                              alt="Mentora Expert" 
+                            <img
+                              src="/lovable-uploads/6e7516e8-25b6-4f1e-8ceb-de974ccd23d8.png"
+                              alt="Mentora Expert"
                               className="w-full h-full object-cover"
                               onError={(e) => {
                                 e.currentTarget.style.display = 'none';
@@ -235,20 +286,21 @@ export function ChatArea({
                       {/* Message Bubble */}
                       <div className={`max-w-[80%] sm:max-w-[75%] ${message.sender === 'user' ? 'text-right' : ''}`}>
                         <div
-                          className={`inline-block p-3 sm:p-4 rounded-2xl shadow-lg transition-all hover:shadow-xl ${
-                            message.sender === 'user'
-                              ? 'bg-gradient-to-br from-primary to-primary/90 text-white rounded-br-md'
-                              : 'bg-card border border-border/50 text-foreground rounded-bl-md'
-                          } ${!isFirst ? (message.sender === 'user' ? 'rounded-tr-md' : 'rounded-tl-md') : ''}`}
+                          className={`inline-block p-3 sm:p-4 rounded-2xl shadow-lg transition-all hover:shadow-xl ${message.sender === 'user'
+                            ? 'bg-gradient-to-br from-primary to-primary/90 text-white rounded-br-md'
+                            : 'bg-card border border-border/50 text-foreground rounded-bl-md'
+                            } ${!isFirst ? (message.sender === 'user' ? 'rounded-tr-md' : 'rounded-tl-md') : ''}`}
                         >
-                          <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                            {message.content}
-                          </p>
+                          <div className="text-sm leading-relaxed">
+                            {message.sender === 'ai'
+                              ? formatMessage(message.content)
+                              : <span className="whitespace-pre-wrap">{message.content}</span>
+                            }
+                          </div>
                         </div>
                         {isLast && (
-                          <p className={`text-xs text-muted-foreground mt-1 sm:mt-2 ${
-                            message.sender === 'user' ? 'text-right' : 'text-left'
-                          }`}>
+                          <p className={`text-xs text-muted-foreground mt-1 sm:mt-2 ${message.sender === 'user' ? 'text-right' : 'text-left'
+                            }`}>
                             {formatTimestamp(message.timestamp)}
                           </p>
                         )}
@@ -264,9 +316,9 @@ export function ChatArea({
           {isTyping && (
             <div className="flex gap-3">
               <div className="w-8 h-8 rounded-full bg-gradient-primary overflow-hidden flex-shrink-0 shadow-md">
-                <img 
-                  src="/lovable-uploads/6e7516e8-25b6-4f1e-8ceb-de974ccd23d8.png" 
-                  alt="Mentora Expert" 
+                <img
+                  src="/lovable-uploads/6e7516e8-25b6-4f1e-8ceb-de974ccd23d8.png"
+                  alt="Mentora Expert"
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
@@ -283,7 +335,7 @@ export function ChatArea({
               </div>
             </div>
           )}
-          
+
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
@@ -313,7 +365,8 @@ export function ChatArea({
               onClick={handleSend}
               size="sm"
               disabled={!inputValue.trim() || isTyping}
-              className="bg-gradient-primary hover:bg-primary-hover text-white shadow-lg min-w-[48px] sm:min-w-[52px] h-[48px] sm:h-[52px] rounded-2xl transition-all hover:scale-105 disabled:hover:scale-100"
+              className="shadow-lg min-w-[48px] sm:min-w-[52px] h-[48px] sm:h-[52px] rounded-2xl transition-all hover:scale-105 disabled:hover:scale-100 disabled:opacity-50"
+              style={{ background: inputValue.trim() && !isTyping ? 'var(--gradient-gold-shine)' : undefined, color: inputValue.trim() && !isTyping ? 'hsl(var(--gold-foreground))' : undefined }}
             >
               {isTyping ? (
                 <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
@@ -325,11 +378,8 @@ export function ChatArea({
           <div className="flex items-center justify-between mt-2 sm:mt-3 text-xs text-muted-foreground">
             <span className="hidden sm:block">Enter para enviar • Shift + Enter para nova linha</span>
             <span className="sm:hidden">Enter para enviar</span>
-            <span className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="hidden sm:inline">Conectado</span>
-              <span className="sm:hidden">Online</span>
-            </span>
+            <span className="hidden sm:inline" style={{ color: 'hsl(var(--gold))' }}>● Conectado</span>
+            <span className="sm:hidden" style={{ color: 'hsl(var(--gold))' }}>● Online</span>
           </div>
         </div>
       </div>

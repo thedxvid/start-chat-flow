@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { ConversationMenu } from '@/components/conversation/ConversationMenu';
 import { SubscriptionStatus } from '@/components/subscription/SubscriptionStatus';
 import { useNavigate } from 'react-router-dom';
-import { Plus, MessageCircle, Clock, Calendar, Star, LogOut, Search, Shield, Crown } from 'lucide-react';
+import { Plus, MessageCircle, Clock, Calendar, Star, LogOut, Search, Shield, Crown, HelpCircle } from 'lucide-react';
 import type { Conversation } from '@/types/chat';
 
 import { useAuth } from '@/hooks/useAuthSimple';
@@ -24,15 +24,15 @@ interface ChatSidebarProps {
   onDuplicateConversation?: (id: string) => void;
 }
 
-export function ChatSidebar({ 
-  conversations, 
-  onNewChat, 
-  onSelectConversation, 
+export function ChatSidebar({
+  conversations,
+  onNewChat,
+  onSelectConversation,
   activeConversationId,
-  onRenameConversation = () => {},
-  onDeleteConversation = () => {},
-  onToggleFavorite = () => {},
-  onDuplicateConversation = () => {}
+  onRenameConversation = () => { },
+  onDeleteConversation = () => { },
+  onToggleFavorite = () => { },
+  onDuplicateConversation = () => { }
 }: ChatSidebarProps) {
   const { signOut, user, isSubscribed, isAdmin } = useAuth();
   const navigate = useNavigate();
@@ -42,7 +42,7 @@ export function ChatSidebar({
   const formatTimestamp = (date: Date) => {
     const now = new Date();
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
+
     if (diffInHours < 1) {
       return 'Agora';
     } else if (diffInHours < 24) {
@@ -65,7 +65,7 @@ export function ChatSidebar({
     conversations.forEach(conv => {
       const now = new Date();
       const diffInHours = Math.floor((now.getTime() - conv.timestamp.getTime()) / (1000 * 60 * 60));
-      
+
       if (diffInHours < 24) {
         groups['Hoje'].push(conv);
       } else if (diffInHours < 48) {
@@ -83,9 +83,9 @@ export function ChatSidebar({
   const filteredConversations = conversations.filter(conv => {
     const matchesSearch = conv.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       conv.lastMessage.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesFavorites = !showFavoritesOnly || conv.isFavorite;
-    
+
     return matchesSearch && matchesFavorites;
   });
 
@@ -126,16 +126,27 @@ export function ChatSidebar({
             </Button>
           </div>
         </div>
-        
+
         {/* New Chat Button */}
         <Button
           onClick={onNewChat}
-          className="w-full bg-gradient-primary hover:bg-primary-hover text-primary-foreground shadow-lg border-0 h-11"
+          className="w-full text-sm font-semibold shadow-lg border-0 h-11 transition-all hover:scale-[1.02] hover:shadow-xl mb-3"
+          style={{ background: 'var(--gradient-gold-shine)', color: 'hsl(var(--gold-foreground))' }}
         >
           <Plus className="h-4 w-4 mr-2" />
           Nova Conversa
         </Button>
-        
+
+        {/* Suporte */}
+        <Button
+          onClick={() => navigate('/suporte')}
+          variant="outline"
+          className="w-full border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/50 h-9 text-sm"
+        >
+          <HelpCircle className="h-4 w-4 mr-2 text-primary" />
+          Central de Suporte
+        </Button>
+
         {/* Search */}
         <div className="mt-4 space-y-3">
           <div className="relative">
@@ -147,7 +158,7 @@ export function ChatSidebar({
               className="pl-10 bg-background/50 border-border/50 focus:bg-background"
             />
           </div>
-          
+
           {/* Filters */}
           <div className="flex items-center gap-2">
             <Button
@@ -176,7 +187,7 @@ export function ChatSidebar({
         <div className="py-2">
           {Object.entries(groupedConversations).map(([group, convs]) => {
             if (convs.length === 0) return null;
-            
+
             return (
               <div key={group} className="mb-6">
                 <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -186,16 +197,15 @@ export function ChatSidebar({
                   {group === 'Mais antigas' && <MessageCircle className="h-3 w-3" />}
                   {group}
                 </div>
-                
+
                 <div className="space-y-1">
                   {convs.map(conversation => (
                     <div
                       key={conversation.id}
-                      className={`group relative rounded-xl transition-all duration-200 hover:bg-muted/50 ${
-                        activeConversationId === conversation.id
-                          ? 'bg-primary/10 ring-2 ring-primary/20 shadow-sm'
-                          : ''
-                      }`}
+                      className={`group relative rounded-xl transition-all duration-200 hover:bg-muted/50 ${activeConversationId === conversation.id
+                        ? 'bg-primary/10 ring-2 ring-primary/20 shadow-sm'
+                        : ''
+                        }`}
                     >
                       <div className="flex items-start gap-3 p-3">
                         <button
@@ -227,7 +237,7 @@ export function ChatSidebar({
                             )}
                           </div>
                         </button>
-                        
+
                         {/* Menu de contexto */}
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                           <ConversationMenu
@@ -245,7 +255,7 @@ export function ChatSidebar({
               </div>
             );
           })}
-          
+
           {filteredConversations.length === 0 && (
             <div className="text-center py-12 px-4">
               <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
@@ -255,13 +265,13 @@ export function ChatSidebar({
                 {searchTerm || showFavoritesOnly ? 'Nenhuma conversa encontrada' : 'Nenhuma conversa ainda'}
               </h3>
               <p className="text-muted-foreground text-sm">
-                {searchTerm ? 'Tente outros termos de busca' : 
-                 showFavoritesOnly ? 'Você ainda não tem conversas favoritas' :
-                 'Comece uma nova conversa!'}
+                {searchTerm ? 'Tente outros termos de busca' :
+                  showFavoritesOnly ? 'Você ainda não tem conversas favoritas' :
+                    'Comece uma nova conversa!'}
               </p>
               {!searchTerm && !showFavoritesOnly && (
-                <Button 
-                  onClick={onNewChat} 
+                <Button
+                  onClick={onNewChat}
                   className="mt-4"
                   size="sm"
                 >

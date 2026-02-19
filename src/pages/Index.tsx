@@ -11,17 +11,17 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChatLayout } from '@/components/chat/ChatLayout';
 import { ChatSidebar } from '@/components/chat/ChatSidebar';
 import { AdminButton } from '@/components/AdminButton';
-import { 
-  Paperclip, 
-  Search, 
-  Mic, 
-  BarChart3, 
-  FileText, 
-  PenTool, 
-  Sparkles, 
-  MoreHorizontal, 
-  LogOut, 
-  Settings, 
+import {
+  Paperclip,
+  Search,
+  Mic,
+  BarChart3,
+  FileText,
+  PenTool,
+  Sparkles,
+  MoreHorizontal,
+  LogOut,
+  Settings,
   Crown,
   ArrowLeft,
   Send,
@@ -41,7 +41,7 @@ const Index = () => {
 
   // Verifica se deve forçar mostrar a tela inicial
   const forceStartScreen = searchParams.get('new') === 'true';
-  
+
   // Se há conversas existentes E não está forçando a tela inicial, mostra o chat layout
   if (conversations.length > 0 && !forceStartScreen) {
     return <ChatLayout />;
@@ -63,15 +63,15 @@ const Index = () => {
 
   const handleStartChat = async () => {
     if (!initialMessage.trim() || isLoading) return;
-    
+
     setIsLoading(true);
     try {
       // Gera um título baseado na mensagem inicial
       const title = initialMessage.trim().split(' ').slice(0, 5).join(' ') + (initialMessage.split(' ').length > 5 ? '...' : '');
-      
+
       // Cria a conversa com a mensagem inicial
       const conversationId = await createConversation(title, initialMessage.trim());
-      
+
       if (conversationId) {
         // Prepara as mensagens para enviar para a IA
         const userMessage: Message = {
@@ -83,7 +83,7 @@ const Index = () => {
 
         // Envia mensagem para a Nathi IA
         const aiResponse = await sendMessage([userMessage], conversationId);
-        
+
         if (aiResponse) {
           const aiMessage: Message = {
             id: (Date.now() + 1).toString(),
@@ -130,7 +130,7 @@ const Index = () => {
     },
     {
       icon: BarChart3,
-      label: "Curso online", 
+      label: "Curso online",
       description: "Desenvolva um curso completo",
       color: "from-green-500 to-green-600",
       prompt: "Olá! Gostaria de criar um curso online mas tenho dúvidas"
