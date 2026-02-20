@@ -96,27 +96,40 @@ export default function Auth() {
     const redirectUrl = `${window.location.origin}/auth`;
 
     try {
-      // Usa a Edge Function customizada para enviar email HTML bonito via Resend
-      // (evita o email padrão simples do Supabase que cai no spam)
-      const { data: { session } } = await supabase.auth.getSession();
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://wpqthkvidfmjyroaijiq.supabase.co';
+      let sent = false;
 
-      const response = await fetch(`${supabaseUrl}/functions/v1/send-password-reset`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
-        },
-        body: JSON.stringify({
-          email: forgotEmail,
+      // Tenta Edge Function customizada primeiro (email bonito via Resend)
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://wpqthkvidfmjyroaijiq.supabase.co';
+
+        const response = await fetch(`${supabaseUrl}/functions/v1/send-password-reset`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+          },
+          body: JSON.stringify({
+            email: forgotEmail,
+            redirectTo: redirectUrl,
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (!result.error) {
+            sent = true;
+          }
+        }
+      } catch {
+        // Edge Function não disponível, fallback abaixo
+      }
+
+      // Fallback: método nativo do Supabase
+      if (!sent) {
+        const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
           redirectTo: redirectUrl,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || result.error) {
-        throw new Error(result.error || 'Erro ao enviar email');
+        });
+        if (error) throw error;
       }
 
       setResetEmailSent(true);

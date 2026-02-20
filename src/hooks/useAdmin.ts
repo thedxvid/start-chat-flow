@@ -102,12 +102,12 @@ export function useAdmin() {
   const createUser = async (userData: CreateUserData) => {
     try {
       console.log('🚀 Iniciando criação de usuário:', userData);
-      
+
       // Gerar senha temporária
       const tempPassword = 'TEMP-' + Math.random().toString(36).slice(-8).toUpperCase();
-      
+
       console.log('📤 Chamando Edge Function send-user-credentials...');
-      
+
       // Criar usuário diretamente via Edge Function
       const { data: emailData, error: emailError } = await supabase.functions.invoke('send-user-credentials', {
         body: {
@@ -124,12 +124,12 @@ export function useAdmin() {
       // Verificar se houve erro na chamada da função
       if (emailError) {
         console.error('❌ Erro detalhado da Edge Function:', emailError);
-        
+
         // Tratamento específico para erro 409 (conflito - usuário já existe)
         if (emailError.message?.includes('409') || emailError.message?.includes('Conflict')) {
           throw new Error(`Email ${userData.email} já está registrado no sistema`);
         }
-        
+
         throw new Error(`Erro ao criar usuário: ${emailError.message}`);
       }
 
@@ -142,11 +142,11 @@ export function useAdmin() {
       // Verificar se houve erro na resposta da função
       if (emailData.error) {
         console.error('❌ Erro retornado pela Edge Function:', emailData.error);
-        
+
         if (emailData.error.includes('já existe') || emailData.error.includes('already exists')) {
           throw new Error(`Email ${userData.email} já está registrado no sistema`);
         }
-        
+
         throw new Error(emailData.error);
       }
 
@@ -157,13 +157,13 @@ export function useAdmin() {
       }
 
       console.log('✅ Usuário criado e email enviado com sucesso:', emailData);
-      
+
       // Atualizar lista de usuários
       await fetchUsers();
-      
+
       return {
         success: true,
-        message: emailData.warning 
+        message: emailData.warning
           ? `Usuário criado com sucesso! ${emailData.warning}. Credenciais: ${userData.email} / ${tempPassword}`
           : `Usuário criado com sucesso! As credenciais foram enviadas para ${userData.email}`,
         userId: emailData.userId,
@@ -202,7 +202,7 @@ export function useAdmin() {
   };
 
   const updateUserSubscription = async (
-    userId: string, 
+    userId: string,
     planType: 'free' | 'premium' | 'pro',
     userEmail?: string
   ) => {
@@ -253,43 +253,98 @@ export function useAdmin() {
 
   const fetchUsers = async () => {
     try {
-      // Usar nova função RPC corrigida v3
-      const { data: adminUsers, error } = await (supabase as any).rpc('get_admin_users_v3');
-      
-      if (error) {
-        throw error;
+      // Primeiro tenta a RPC
+      let usersWithData: UserWithProfile[] = [];
+
+      try {
+        const { data: adminUsers, error } = await (supabase as any).rpc('get_admin_users_v3');
+
+        if (!error && adminUsers && adminUsers.length > 0) {
+          usersWithData = adminUsers.map((userData: any) => ({
+            id: userData.user_id,
+            email: userData.email || '',
+            created_at: userData.created_at,
+            role: userData.role || 'user',
+            profile: {
+              full_name: userData.full_name || '',
+              avatar_url: null
+            },
+            subscription: {
+              status: userData.status || 'inactive',
+              plan_type: userData.plan_type || 'free',
+              expires_at: null
+            },
+            tokenStats: {
+              total_tokens: 0,
+              total_cost: 0,
+              conversation_count: 0,
+              avg_tokens_per_conversation: 0,
+              last_used_at: ''
+            }
+          }));
+        }
+      } catch {
+        console.log('RPC get_admin_users_v3 não disponível, usando fallback...');
       }
 
-      // Process data from RPC function (no token usage for now)
-      const usersWithData = (adminUsers || []).map((userData: any) => {
+      // Fallback: consulta direta às tabelas se RPC falhou ou retornou vazio
+      if (usersWithData.length === 0) {
+        console.log('Buscando usuários diretamente das tabelas...');
 
-        return {
-          id: userData.user_id,
-          email: userData.email || '',
-          created_at: userData.created_at,
-          role: userData.role || 'user',
-          profile: {
-            full_name: userData.full_name || '',
-            avatar_url: null
-          },
-          subscription: {
-            status: userData.status || 'inactive',
-            plan_type: userData.plan_type || 'free',
-            expires_at: null
-          },
-          tokenStats: {
-            total_tokens: 0,
-            total_cost: 0,
-            conversation_count: 0,
-            avg_tokens_per_conversation: 0,
-            last_used_at: ''
-          }
-        };
-      });
+        // Buscar todos os profiles
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (profilesError) {
+          console.error('Erro ao buscar profiles:', profilesError);
+          throw profilesError;
+        }
+
+        if (profiles && profiles.length > 0) {
+          // Buscar roles
+          const { data: roles } = await supabase
+            .from('user_roles')
+            .select('*');
+
+          // Buscar subscriptions
+          const { data: subscriptions } = await supabase
+            .from('subscriptions')
+            .select('*');
+
+          const rolesMap = new Map((roles || []).map(r => [r.user_id, r.role]));
+          const subsMap = new Map((subscriptions || []).map(s => [s.user_id, s]));
+
+          usersWithData = profiles.map((profile) => {
+            const sub = subsMap.get(profile.user_id);
+            return {
+              id: profile.user_id,
+              email: profile.email || '',
+              created_at: profile.created_at || new Date().toISOString(),
+              role: rolesMap.get(profile.user_id) || 'user',
+              profile: {
+                full_name: profile.full_name || '',
+                avatar_url: profile.avatar_url || null
+              },
+              subscription: {
+                status: sub?.status || 'inactive',
+                plan_type: sub?.plan_type || 'free',
+                expires_at: sub?.expires_at || null
+              },
+              tokenStats: {
+                total_tokens: 0,
+                total_cost: 0,
+                conversation_count: 0,
+                avg_tokens_per_conversation: 0,
+                last_used_at: ''
+              }
+            };
+          });
+        }
+      }
 
       setUsers(usersWithData);
-
-      // Calculate totals (set to 0 for now)
       setTotalTokenUsage(0);
       setTotalCost(0);
 
@@ -302,7 +357,7 @@ export function useAdmin() {
   const resendWelcomeEmail = async (email: string, fullName: string) => {
     try {
       const result = await sendWelcomeEmail(email, fullName);
-      
+
       if (result.success) {
         // Notificar admin sobre reenvio
         await sendAdminNotification('Email de boas-vindas reenviado', {
@@ -311,7 +366,7 @@ export function useAdmin() {
           timestamp: new Date().toISOString()
         });
       }
-      
+
       return result;
     } catch (error) {
       console.error('Error resending welcome email:', error);
@@ -323,9 +378,9 @@ export function useAdmin() {
   const cleanupIncompleteUsers = async () => {
     try {
       console.log('🧹 Iniciando limpeza via Edge Function...');
-      
+
       const { data, error } = await supabase.functions.invoke('cleanup-users', {
-        body: { 
+        body: {
           action: 'cleanup_incomplete',
           email: 'davicastropx@gmail.com' // Email específico problemático
         }
@@ -341,7 +396,7 @@ export function useAdmin() {
       if (data?.success) {
         // Atualizar lista de usuários
         await fetchUsers();
-        
+
         return {
           success: true,
           message: data.message || 'Limpeza concluída com sucesso'
@@ -349,7 +404,7 @@ export function useAdmin() {
       }
 
       throw new Error(data?.error || 'Erro na limpeza');
-      
+
     } catch (error) {
       console.error('💥 Erro na limpeza de usuários incompletos:', error);
       return {
@@ -357,6 +412,38 @@ export function useAdmin() {
         error: error.message || 'Erro desconhecido na limpeza'
       };
     }
+  };
+
+  // Função para criar usuários em massa (importação CSV/XLSX)
+  const bulkCreateUsers = async (
+    usersList: Array<{ email: string; fullName: string; role?: 'user' | 'admin'; planType?: 'free' | 'premium' | 'pro' }>
+  ) => {
+    const results: Array<{ email: string; success: boolean; error?: string }> = [];
+
+    for (const userData of usersList) {
+      try {
+        await createUser({
+          email: userData.email,
+          fullName: userData.fullName,
+          role: userData.role || 'user',
+          planType: userData.planType || 'free',
+        });
+        results.push({ email: userData.email, success: true });
+      } catch (error: any) {
+        results.push({
+          email: userData.email,
+          success: false,
+          error: error.message || 'Erro desconhecido',
+        });
+      }
+
+      // Pequeno delay para não sobrecarregar a API
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    // Recarregar lista depois da importação
+    await fetchUsers();
+    return results;
   };
 
   return {
@@ -371,6 +458,7 @@ export function useAdmin() {
     updateUserSubscription,
     fetchUsers,
     resendWelcomeEmail,
-    cleanupIncompleteUsers
+    cleanupIncompleteUsers,
+    bulkCreateUsers
   };
 }

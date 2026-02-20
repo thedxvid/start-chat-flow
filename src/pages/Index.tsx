@@ -108,23 +108,27 @@ const Index = () => {
   const quickActions = [
     {
       icon: FileText,
-      label: 'Criar e-book',
-      prompt: 'Quero criar um e-book. Pode me ajudar a estruturar do zero?',
+      // Sistema Start — Criar meu e-book
+      label: 'Criar meu e-book',
+      prompt: 'Quero criar um e-book do zero. Me ajuda a definir o tema, estrutura e conteúdo para vender bem?',
     },
     {
       icon: BarChart3,
-      label: 'Curso online',
-      prompt: 'Quero lançar um curso online. Por onde devo começar?',
+      // Sistema Start — Lançar um curso
+      label: 'Lançar um curso',
+      prompt: 'Quero lançar meu primeiro curso online. Por onde começar e como estruturar o conteúdo?',
     },
     {
       icon: PenTool,
-      label: 'Mentoria',
-      prompt: 'Quero montar uma mentoria profissional. Como estruturo isso?',
+      // Sistema Start — Montar mentoria
+      label: 'Montar mentoria',
+      prompt: 'Quero criar uma mentoria profissional e cobrar por ela. Como estruturo e precifco isso?',
     },
     {
       icon: Megaphone,
-      label: 'Marketing digital',
-      prompt: 'Preciso de uma estratégia de marketing digital. Pode me guiar?',
+      // Sistema Start — Estratégia de vendas
+      label: 'Estratégia de vendas',
+      prompt: 'Preciso de uma estratégia completa de marketing e vendas para o meu produto digital. Pode me guiar?',
     },
   ];
 
@@ -213,7 +217,7 @@ function MainContent({
 }: any) {
   return (
     <div className="flex-1 flex flex-col">
-      {/* Header minimalista */}
+      {/* ── Header minimalista ── */}
       <header className="flex items-center justify-between px-6 sm:px-8 py-4 border-b border-border/40">
         <div className="flex items-center gap-3">
           {showBack && (
@@ -224,11 +228,20 @@ function MainContent({
               ← Voltar
             </button>
           )}
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold text-foreground tracking-tight">Sistema Start</span>
-            <span className="text-[10px] text-muted-foreground tracking-widest uppercase">by Nathalia Ouro</span>
+          {/* Logo / Marca */}
+          <div className="flex flex-col leading-tight">
+            <span
+              className="text-sm font-bold tracking-tight"
+              style={{ color: 'hsl(42 55% 44%)' }}
+            >
+              Sistema Start
+            </span>
+            <span className="text-[10px] text-muted-foreground tracking-widest uppercase">
+              by Nathalia Ouro
+            </span>
           </div>
         </div>
+
         <div className="flex items-center gap-1">
           <AdminButton />
           <button
@@ -255,36 +268,41 @@ function MainContent({
         </div>
       </header>
 
-      {/* Conteúdo central */}
+      {/* ── Conteúdo central ── */}
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-12">
         <div className="w-full max-w-2xl space-y-10">
 
           {/* Hero */}
-          <div className="text-center space-y-3">
+          <div className="text-center space-y-4">
+            {/* Pílula de marca */}
             <div
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-2"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-2 tracking-wide"
               style={{ background: 'hsl(42 55% 50% / 0.1)', color: 'hsl(42 55% 38%)' }}
             >
               <Sparkles className="h-3 w-3" />
-              Mentora IA especializada em marketing digital
+              Sistema Start — by Nathalia Ouro
             </div>
+
+            {/* Headline */}
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground leading-[1.1]">
-              Como posso te{' '}
-              <span style={{ color: 'hsl(42 55% 46%)' }}>ajudar hoje?</span>
+              O que você vai{' '}
+              <span style={{ color: 'hsl(42 55% 44%)' }}>criar hoje?</span>
             </h1>
-            <p className="text-base text-muted-foreground max-w-md mx-auto leading-relaxed">
-              Sou a Nathi, sua mentora expert. Estou aqui para te guiar na criação de produtos digitais e estratégias que vendem.
+
+            {/* Subtítulo */}
+            <p className="text-base text-muted-foreground max-w-sm mx-auto leading-relaxed">
+              Sua mentora IA do Sistema Start está aqui para te ajudar a criar produtos digitais, estratégias e conteúdos que vendem.
             </p>
           </div>
 
           {/* Input */}
           <div className="relative group">
             <Textarea
-              placeholder="Descreva seu projeto ou dúvida..."
+              placeholder="Me conte o que você quer criar ou qual é sua dúvida de hoje..."
               value={initialMessage}
               onChange={(e) => setInitialMessage(e.target.value)}
               onKeyDown={handleKeyPress}
-              className="w-full min-h-[120px] sm:min-h-[140px] pr-14 text-sm sm:text-base resize-none rounded-2xl border border-border/60 bg-card shadow-sm focus:shadow-md focus:border-primary/40 transition-all placeholder:text-muted-foreground/60 px-5 py-4"
+              className="w-full min-h-[120px] sm:min-h-[140px] pr-14 text-sm sm:text-base resize-none rounded-2xl border border-border/60 bg-card shadow-sm focus:shadow-md focus:border-primary/40 transition-all placeholder:text-muted-foreground/50 px-5 py-4"
             />
             <button
               onClick={handleStartChat}
@@ -305,7 +323,7 @@ function MainContent({
           {/* Quick actions */}
           <div>
             <p className="text-xs text-muted-foreground text-center mb-4 uppercase tracking-widest">
-              Começar com
+              Comece por aqui
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {quickActions.map((action: any, index: number) => (
@@ -318,13 +336,13 @@ function MainContent({
                     className="h-8 w-8 rounded-xl flex items-center justify-center"
                     style={{ background: 'hsl(42 55% 50% / 0.1)' }}
                   >
-                    <action.icon className="h-4 w-4" style={{ color: 'hsl(42 55% 46%)' }} />
+                    <action.icon className="h-4 w-4" style={{ color: 'hsl(42 55% 44%)' }} />
                   </div>
                   <div className="flex-1">
                     <span className="text-sm font-medium text-foreground">{action.label}</span>
                   </div>
                   <ArrowRight
-                    className="h-3 w-3 text-muted-foreground/50 group-hover:translate-x-0.5 transition-transform"
+                    className="h-3 w-3 group-hover:translate-x-0.5 transition-transform"
                     style={{ color: 'hsl(42 55% 50%)' }}
                   />
                 </button>
@@ -335,10 +353,10 @@ function MainContent({
         </div>
       </main>
 
-      {/* Footer minimalista */}
+      {/* ── Footer ── */}
       <footer className="text-center py-4 px-6">
-        <p className="text-xs text-muted-foreground/50">
-          Sistema Start by Nathalia Ouro · IA especializada em marketing digital
+        <p className="text-xs" style={{ color: 'hsl(42 55% 50% / 0.45)' }}>
+          Sistema Start by Nathalia Ouro · Mentoria Expert em Marketing Digital
         </p>
       </footer>
     </div>
