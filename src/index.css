@@ -2,124 +2,127 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Sistema Start - Design System 
-   Paleta de cores verde/azul com gradientes para interface de chat IA
-   Todos os valores em HSL para consistência */
+/* ─────────────────────────────────────────────────
+   Sistema Start — Design System
+   Identidade: Ouro refinado, minimalista, Apple-like
+   Cor primária: Dourado rico #C9A84C → hsl(42 55% 55%)
+   ───────────────────────────────────────────────── */
 
 @layer base {
   :root {
-    --background: 220 15% 97%;
-    --foreground: 215 25% 15%;
+    /* Neutros */
+    --background: 40 20% 98%;
+    --foreground: 30 10% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 15%;
-    --card-hover: 210 40% 96%;
+    --card-foreground: 30 10% 12%;
+    --card-hover: 42 20% 97%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
+    --popover-foreground: 30 10% 12%;
 
-    /* Chat - cores principais em verde/azul */
-    --primary: 175 60% 45%;
+    /* ── PRIMÁRIA: Dourado elegante ── */
+    --primary: 42 55% 50%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 175 65% 40%;
+    --primary-hover: 42 60% 44%;
 
-    /* Dourado Aurora - premium accent */
-    --gold: 43 90% 52%;
-    --gold-light: 45 95% 65%;
-    --gold-dark: 38 85% 40%;
+    /* Dourado — mesma família, para acentos */
+    --gold: 42 55% 50%;
+    --gold-light: 44 70% 63%;
+    --gold-dark: 38 55% 38%;
     --gold-foreground: 30 40% 15%;
 
-    --secondary: 210 45% 92%;
-    --secondary-foreground: 215 25% 25%;
+    --secondary: 40 15% 93%;
+    --secondary-foreground: 30 10% 25%;
 
-    --muted: 210 40% 94%;
-    --muted-foreground: 215 16% 55%;
+    --muted: 40 12% 93%;
+    --muted-foreground: 30 8% 52%;
 
-    --accent: 200 50% 50%;
+    --accent: 42 55% 50%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 210 30% 87%;
-    --input: 210 30% 87%;
-    --ring: 175 60% 45%;
+    --border: 40 15% 88%;
+    --input: 40 15% 88%;
+    --ring: 42 55% 50%;
 
     /* Chat específico */
-    --chat-user: 175 60% 45%;
+    --chat-user: 42 55% 50%;
     --chat-user-foreground: 0 0% 100%;
-    --chat-ai: 210 40% 94%;
-    --chat-ai-foreground: 215 25% 25%;
-    --chat-sidebar: 220 20% 98%;
-    --chat-sidebar-active: 175 20% 95%;
+    --chat-ai: 40 12% 93%;
+    --chat-ai-foreground: 30 10% 20%;
+    --chat-sidebar: 40 15% 98%;
+    --chat-sidebar-active: 42 25% 94%;
 
-    /* Gradientes */
-    --gradient-primary: linear-gradient(135deg, hsl(175 60% 45%), hsl(200 55% 50%));
-    --gradient-background: linear-gradient(180deg, hsl(220 15% 97%), hsl(210 20% 95%));
-    --gradient-chat: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 15% 98%));
-    --gradient-gold: linear-gradient(135deg, hsl(43 90% 52%), hsl(38 85% 42%));
-    --gradient-gold-shine: linear-gradient(135deg, hsl(45 95% 65%), hsl(43 90% 52%), hsl(38 85% 40%));
+    /* Gradientes — dourado sólido com leve variação */
+    --gradient-primary: linear-gradient(135deg, hsl(44 58% 54%), hsl(38 52% 44%));
+    --gradient-background: linear-gradient(180deg, hsl(40 20% 98%), hsl(40 15% 96%));
+    --gradient-chat: linear-gradient(180deg, hsl(0 0% 100%), hsl(40 10% 98%));
+    --gradient-gold: linear-gradient(135deg, hsl(44 58% 54%), hsl(38 52% 44%));
+    --gradient-gold-shine: linear-gradient(135deg, hsl(46 68% 63%), hsl(42 58% 52%), hsl(38 52% 42%));
 
     /* Sombras */
-    --shadow-elegant: 0 4px 20px hsl(175 60% 45% / 0.1);
-    --shadow-chat: 0 2px 8px hsl(0 0% 0% / 0.08);
-    --shadow-message: 0 1px 3px hsl(0 0% 0% / 0.1);
+    --shadow-elegant: 0 4px 24px hsl(42 55% 50% / 0.12);
+    --shadow-chat: 0 2px 8px hsl(0 0% 0% / 0.06);
+    --shadow-message: 0 1px 3px hsl(0 0% 0% / 0.08);
 
     --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar */
+    --sidebar-background: 40 20% 98%;
+    --sidebar-foreground: 30 10% 25%;
+    --sidebar-primary: 42 55% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 40 15% 93%;
+    --sidebar-accent-foreground: 30 10% 20%;
+    --sidebar-border: 40 15% 88%;
+    --sidebar-ring: 42 55% 50%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 30 8% 8%;
+    --foreground: 40 15% 92%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 30 8% 10%;
+    --card-foreground: 40 15% 92%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 30 8% 10%;
+    --popover-foreground: 40 15% 92%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 42 58% 52%;
+    --primary-foreground: 30 10% 10%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --gold: 42 58% 52%;
+    --gold-light: 44 68% 63%;
+    --gold-dark: 38 50% 38%;
+    --gold-foreground: 0 0% 100%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --secondary: 30 8% 16%;
+    --secondary-foreground: 40 15% 80%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --muted: 30 8% 16%;
+    --muted-foreground: 40 8% 55%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --accent: 42 55% 48%;
+    --accent-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --destructive: 0 62% 35%;
+    --destructive-foreground: 40 15% 92%;
+
+    --border: 30 8% 18%;
+    --input: 30 8% 18%;
+    --ring: 42 58% 52%;
+
+    --sidebar-background: 30 8% 8%;
+    --sidebar-foreground: 40 10% 80%;
+    --sidebar-primary: 42 58% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 30 8% 14%;
+    --sidebar-accent-foreground: 40 10% 80%;
+    --sidebar-border: 30 8% 16%;
+    --sidebar-ring: 42 58% 52%;
   }
 }
 
@@ -130,5 +133,13 @@
 
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Animações suaves */
+@layer utilities {
+  .transition-smooth {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }

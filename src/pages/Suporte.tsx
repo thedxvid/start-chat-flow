@@ -473,7 +473,9 @@ export function Suporte() {
     };
 
     const handleCategoryClick = (query: string) => {
-        setSearchQuery(query.split(' ')[0]);
+        setSearchQuery(query);
+        // Rola para os resultados suavemente
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const formatTime = (date: Date) =>
@@ -844,10 +846,10 @@ export function Suporte() {
             </div>
 
             {/* ── Floating Chat Button & Window ── */}
-            <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4">
+            <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end gap-3">
                 {/* Floating Window */}
                 {isFloatingChatOpen && (
-                    <div className="w-[350px] sm:w-[380px] h-[500px] bg-white rounded-2xl shadow-2xl border border-border/50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-200">
+                    <div className="w-[calc(100vw-2rem)] max-w-[380px] h-[70vh] max-h-[500px] bg-white rounded-2xl shadow-2xl border border-border/50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-200">
                         {/* Header */}
                         <div className="flex items-center justify-between px-4 py-3 bg-slate-900 text-white">
                             <div className="flex items-center gap-3">

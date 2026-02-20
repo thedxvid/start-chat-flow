@@ -11,12 +11,12 @@ import type { Message, Conversation } from '@/types/chat';
 
 export function ChatLayout() {
   const navigate = useNavigate();
-  const { 
-    conversations, 
-    updateConversation, 
-    deleteConversation, 
-    duplicateConversation, 
-    toggleFavorite 
+  const {
+    conversations,
+    updateConversation,
+    deleteConversation,
+    duplicateConversation,
+    toggleFavorite
   } = useConversations();
   const { sendMessage, isLoading } = useNathiChat();
   const [activeConversationId, setActiveConversationId] = useState<string>();
@@ -70,7 +70,7 @@ export function ChatLayout() {
   const handleDeleteConversation = async (id: string) => {
     try {
       await deleteConversation(id);
-      
+
       // Se a conversa deletada estava ativa, seleciona outra
       if (activeConversationId === id) {
         const remainingConversations = conversations.filter(c => c.id !== id);
@@ -81,7 +81,7 @@ export function ChatLayout() {
           navigate('/?new=true');
         }
       }
-      
+
       toast.success('Conversa excluída com sucesso!');
     } catch (error) {
       console.error('Erro ao excluir conversa:', error);
@@ -123,7 +123,7 @@ export function ChatLayout() {
 
     // Add user message to conversation
     const updatedMessages = [...activeConversation.messages, userMessage];
-    
+
     // Update conversation with user message
     await updateConversation(activeConversationId, {
       messages: updatedMessages,
@@ -134,7 +134,7 @@ export function ChatLayout() {
     // Send message to Nathi AI
     try {
       const aiResponse = await sendMessage(updatedMessages, activeConversationId);
-      
+
       if (aiResponse) {
         const aiMessage: Message = {
           id: (Date.now() + 1).toString(),
@@ -144,7 +144,7 @@ export function ChatLayout() {
         };
 
         const finalMessages = [...updatedMessages, aiMessage];
-        
+
         // Update conversation with AI response
         await updateConversation(activeConversationId, {
           messages: finalMessages,
@@ -167,9 +167,10 @@ export function ChatLayout() {
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0 transition-transform duration-300 ease-in-out
         fixed md:relative top-0 left-0 h-full z-40
-        w-72 sm:w-80 md:w-96 flex-shrink-0
+        w-72 sm:w-80 md:w-80 lg:w-96 flex-shrink-0
         bg-background md:bg-transparent
         shadow-2xl md:shadow-none
+        ${!isSidebarOpen ? 'pointer-events-none md:pointer-events-auto' : ''}
       `}>
         <ChatSidebar
           conversations={conversations}
@@ -180,14 +181,16 @@ export function ChatLayout() {
           onDeleteConversation={handleDeleteConversation}
           onToggleFavorite={handleToggleFavorite}
           onDuplicateConversation={handleDuplicateConversation}
+          onCloseSidebar={() => setIsSidebarOpen(false)}
         />
       </div>
 
-      {/* Mobile overlay */}
+      {/* Mobile overlay — captures touch/click to close sidebar */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="md:hidden fixed inset-0 bg-black/50 z-30 backdrop-blur-sm"
-          onClick={() => setIsSidebarOpen(false)}
+          onClick={(e) => { e.stopPropagation(); setIsSidebarOpen(false); }}
+          onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setIsSidebarOpen(false); }}
         />
       )}
 

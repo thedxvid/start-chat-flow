@@ -95,22 +95,42 @@ export default function Auth() {
 
     const redirectUrl = `${window.location.origin}/auth`;
 
-    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-      redirectTo: redirectUrl,
-    });
+    try {
+      // Usa a Edge Function customizada para enviar email HTML bonito via Resend
+      // (evita o email padrão simples do Supabase que cai no spam)
+      const { data: { session } } = await supabase.auth.getSession();
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://wpqthkvidfmjyroaijiq.supabase.co';
 
-    if (error) {
-      setError(error.message);
-      toast({
-        title: 'Erro ao enviar email',
-        description: error.message,
-        variant: 'destructive',
+      const response = await fetch(`${supabaseUrl}/functions/v1/send-password-reset`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+        },
+        body: JSON.stringify({
+          email: forgotEmail,
+          redirectTo: redirectUrl,
+        }),
       });
-    } else {
+
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Erro ao enviar email');
+      }
+
       setResetEmailSent(true);
       toast({
         title: 'Email enviado!',
         description: 'Verifique sua caixa de entrada para redefinir sua senha.',
+      });
+    } catch (err: any) {
+      const msg = err.message || 'Erro ao enviar email de recuperação';
+      setError(msg);
+      toast({
+        title: 'Erro ao enviar email',
+        description: msg,
+        variant: 'destructive',
       });
     }
 

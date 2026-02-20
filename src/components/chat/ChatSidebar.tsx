@@ -22,6 +22,7 @@ interface ChatSidebarProps {
   onDeleteConversation?: (id: string) => void;
   onToggleFavorite?: (id: string) => void;
   onDuplicateConversation?: (id: string) => void;
+  onCloseSidebar?: () => void;
 }
 
 export function ChatSidebar({
@@ -32,7 +33,8 @@ export function ChatSidebar({
   onRenameConversation = () => { },
   onDeleteConversation = () => { },
   onToggleFavorite = () => { },
-  onDuplicateConversation = () => { }
+  onDuplicateConversation = () => { },
+  onCloseSidebar,
 }: ChatSidebarProps) {
   const { signOut, user, isSubscribed, isAdmin } = useAuth();
   const navigate = useNavigate();
@@ -139,7 +141,11 @@ export function ChatSidebar({
 
         {/* Suporte */}
         <Button
-          onClick={() => navigate('/suporte')}
+          onClick={() => {
+            // fecha sidebar no mobile antes de navegar
+            if (onCloseSidebar) onCloseSidebar();
+            navigate('/suporte');
+          }}
           variant="outline"
           className="w-full border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/50 h-9 text-sm"
         >

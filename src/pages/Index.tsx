@@ -2,8 +2,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuthSimple';
 import { useConversations } from '@/hooks/useConversations';
 import { useNathiChat } from '@/hooks/useNathiChat';
@@ -12,20 +10,17 @@ import { ChatLayout } from '@/components/chat/ChatLayout';
 import { ChatSidebar } from '@/components/chat/ChatSidebar';
 import { AdminButton } from '@/components/AdminButton';
 import {
-  Paperclip,
-  Search,
-  Mic,
-  BarChart3,
-  FileText,
-  PenTool,
-  Sparkles,
-  MoreHorizontal,
-  LogOut,
   Settings,
-  Crown,
-  ArrowLeft,
+  LogOut,
   Send,
-  Loader2
+  Loader2,
+  ArrowRight,
+  Sparkles,
+  FileText,
+  BarChart3,
+  PenTool,
+  Megaphone,
+  HelpCircle,
 } from 'lucide-react';
 import type { Message } from '@/types/chat';
 import { toast } from 'sonner';
@@ -39,10 +34,8 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Verifica se deve forçar mostrar a tela inicial
   const forceStartScreen = searchParams.get('new') === 'true';
 
-  // Se há conversas existentes E não está forçando a tela inicial, mostra o chat layout
   if (conversations.length > 0 && !forceStartScreen) {
     return <ChatLayout />;
   }
@@ -66,14 +59,10 @@ const Index = () => {
 
     setIsLoading(true);
     try {
-      // Gera um título baseado na mensagem inicial
       const title = initialMessage.trim().split(' ').slice(0, 5).join(' ') + (initialMessage.split(' ').length > 5 ? '...' : '');
-
-      // Cria a conversa com a mensagem inicial
       const conversationId = await createConversation(title, initialMessage.trim());
 
       if (conversationId) {
-        // Prepara as mensagens para enviar para a IA
         const userMessage: Message = {
           id: Date.now().toString(),
           content: initialMessage.trim(),
@@ -81,7 +70,6 @@ const Index = () => {
           timestamp: new Date()
         };
 
-        // Envia mensagem para a Nathi IA
         const aiResponse = await sendMessage([userMessage], conversationId);
 
         if (aiResponse) {
@@ -92,7 +80,6 @@ const Index = () => {
             timestamp: new Date()
           };
 
-          // Atualiza a conversa com a resposta da IA
           await updateConversation(conversationId, {
             messages: [userMessage, aiMessage],
             lastMessage: aiResponse.substring(0, 100) + (aiResponse.length > 100 ? '...' : ''),
@@ -101,8 +88,6 @@ const Index = () => {
         }
 
         setInitialMessage('');
-        toast.success('Conversa iniciada com a Nathi!');
-        // Navega para o chat sem forçar nova conversa
         navigate('/');
       }
     } catch (error) {
@@ -123,172 +108,68 @@ const Index = () => {
   const quickActions = [
     {
       icon: FileText,
-      label: "Criar e-book",
-      description: "Estruture seu e-book do zero",
-      color: "from-blue-500 to-blue-600",
-      prompt: "Oi Nathi! Quero criar um e-book e não sei por onde começar"
+      label: 'Criar e-book',
+      prompt: 'Quero criar um e-book. Pode me ajudar a estruturar do zero?',
     },
     {
       icon: BarChart3,
-      label: "Curso online",
-      description: "Desenvolva um curso completo",
-      color: "from-green-500 to-green-600",
-      prompt: "Olá! Gostaria de criar um curso online mas tenho dúvidas"
+      label: 'Curso online',
+      prompt: 'Quero lançar um curso online. Por onde devo começar?',
     },
     {
       icon: PenTool,
-      label: "Mentoria",
-      description: "Monte sua mentoria profissional",
-      color: "from-purple-500 to-purple-600",
-      prompt: "Oi! Quero estruturar uma mentoria, pode me ajudar?"
+      label: 'Mentoria',
+      prompt: 'Quero montar uma mentoria profissional. Como estruturo isso?',
     },
     {
-      icon: Sparkles,
-      label: "Marketing digital",
-      description: "Estratégias e táticas eficazes",
-      color: "from-orange-500 to-orange-600",
-      prompt: "Olá Nathi! Preciso de ajuda com estratégias de marketing digital"
-    }
+      icon: Megaphone,
+      label: 'Marketing digital',
+      prompt: 'Preciso de uma estratégia de marketing digital. Pode me guiar?',
+    },
   ];
 
   const handleQuickAction = (prompt: string) => {
     setInitialMessage(prompt);
   };
 
-  // Se há conversas, mostra o layout com sidebar
+  // Tela com conversas existentes + forceStartScreen
   if (conversations.length > 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/20 flex">
-        {/* Sidebar */}
-        <div className="w-80 border-r border-border/50 bg-card/50 backdrop-blur-sm">
+      <div className="min-h-screen bg-background flex">
+        <div className="w-80 border-r border-border/40 bg-card">
           <ChatSidebar
             conversations={conversations}
             onNewChat={handleNewChat}
             onSelectConversation={handleSelectConversation}
-            activeConversationId={null}
+            activeConversationId={undefined}
             onRenameConversation={async (id, newTitle) => {
               await updateConversation(id, { title: newTitle });
-              toast.success('Conversa renomeada!');
             }}
             onDeleteConversation={async (id) => {
               await deleteConversation(id);
-              toast.success('Conversa excluída!');
             }}
             onToggleFavorite={toggleFavorite}
             onDuplicateConversation={async (id) => {
               await duplicateConversation(id);
-              toast.success('Conversa duplicada!');
             }}
           />
         </div>
-
-        {/* Main Content */}
         <div className="flex-1 flex flex-col">
-          {/* Header */}
-          <div className="flex justify-between items-center p-4 border-b border-border/50 bg-card/50 backdrop-blur-sm">
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={handleBackToChat}
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar ao Chat
-              </Button>
-            </div>
-            <h1 className="text-xl font-bold text-foreground">Nova Conversa</h1>
-            <div className="flex items-center gap-2">
-              <AdminButton />
-              <Button
-                onClick={() => navigate('/settings')}
-                size="sm"
-                variant="ghost"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-              <Button
-                onClick={signOut}
-                size="sm"
-                variant="ghost"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Content Area */}
-          <div className="flex-1 flex flex-col items-center justify-center p-8">
-            <div className="max-w-4xl w-full space-y-8">
-              {/* Hero Section */}
-              <div className="text-center space-y-4">
-                <div className="w-20 h-20 mx-auto rounded-full bg-gradient-primary flex items-center justify-center mb-6">
-                  <Sparkles className="h-10 w-10 text-white" />
-                </div>
-                <h1 className="text-4xl font-bold text-foreground">
-                  Olá! Como posso te ajudar hoje?
-                </h1>
-                <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                  Sou a Nathi, sua mentora expert em marketing digital. Vamos criar algo incrível juntos!
-                </p>
-              </div>
-
-              {/* Input Area */}
-              <div className="relative max-w-3xl mx-auto">
-                <Textarea
-                  placeholder="Conte-me sobre seu projeto ou objetivo..."
-                  value={initialMessage}
-                  onChange={(e) => setInitialMessage(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  className="min-h-[120px] pr-16 text-base resize-none border-2 border-border/50 focus:border-primary rounded-2xl"
-                />
-                <div className="absolute bottom-4 right-4 flex items-center gap-2">
-                  <Badge variant="secondary" className="text-xs">
-                    💡 Dica: Seja específico sobre seus objetivos
-                  </Badge>
-                  <Button
-                    onClick={handleStartChat}
-                    disabled={!initialMessage.trim() || isLoading}
-                    size="sm"
-                    className="rounded-xl"
-                  >
-                    {isLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Quick Actions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
-                {quickActions.map((action, index) => (
-                  <Card
-                    key={index}
-                    className="p-6 cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 border-2 border-transparent hover:border-primary/20"
-                    onClick={() => handleQuickAction(action.prompt)}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${action.color} flex items-center justify-center flex-shrink-0`}>
-                        <action.icon className="h-6 w-6 text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg text-foreground mb-2">
-                          {action.label}
-                        </h3>
-                        <p className="text-muted-foreground text-sm">
-                          {action.description}
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          </div>
+          <MainContent
+            initialMessage={initialMessage}
+            setInitialMessage={setInitialMessage}
+            isLoading={isLoading}
+            handleStartChat={handleStartChat}
+            handleKeyPress={handleKeyPress}
+            quickActions={quickActions}
+            handleQuickAction={handleQuickAction}
+            user={user}
+            isAdmin={isAdmin}
+            signOut={signOut}
+            navigate={navigate}
+            showBack
+            handleBackToChat={handleBackToChat}
+          />
         </div>
       </div>
     );
@@ -296,108 +177,172 @@ const Index = () => {
 
   // Tela inicial sem conversas
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/20 flex flex-col">
-      {/* Header */}
-      <div className="flex justify-between items-center p-4 border-b border-border/50 bg-card/50 backdrop-blur-sm">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-            <Sparkles className="h-4 w-4 text-white" />
-          </div>
-          <h1 className="text-xl font-bold text-foreground">Start Chat</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <AdminButton />
-          <Button
-            onClick={() => navigate('/settings')}
-            size="sm"
-            variant="ghost"
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-          <Button
-            onClick={signOut}
-            size="sm"
-            variant="ghost"
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col items-center justify-center p-8">
-        <div className="max-w-4xl w-full space-y-8">
-          {/* Hero Section */}
-          <div className="text-center space-y-4">
-            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-primary flex items-center justify-center mb-6">
-              <Sparkles className="h-10 w-10 text-white" />
-            </div>
-            <h1 className="text-4xl font-bold text-foreground">
-              Olá! Como posso te ajudar hoje?
-            </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Sou a Nathi, sua mentora expert em marketing digital. Vamos criar algo incrível juntos!
-            </p>
-          </div>
-
-          {/* Input Area */}
-          <div className="relative max-w-3xl mx-auto">
-            <Textarea
-              placeholder="Conte-me sobre seu projeto ou objetivo..."
-              value={initialMessage}
-              onChange={(e) => setInitialMessage(e.target.value)}
-              onKeyDown={handleKeyPress}
-              className="min-h-[120px] pr-16 text-base resize-none border-2 border-border/50 focus:border-primary rounded-2xl"
-            />
-            <div className="absolute bottom-4 right-4 flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">
-                💡 Dica: Seja específico sobre seus objetivos
-              </Badge>
-              <Button
-                onClick={handleStartChat}
-                disabled={!initialMessage.trim() || isLoading}
-                size="sm"
-                className="rounded-xl"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
-            {quickActions.map((action, index) => (
-              <Card
-                key={index}
-                className="p-6 cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105 border-2 border-transparent hover:border-primary/20"
-                onClick={() => handleQuickAction(action.prompt)}
-              >
-                <div className="flex items-start gap-4">
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${action.color} flex items-center justify-center flex-shrink-0`}>
-                    <action.icon className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg text-foreground mb-2">
-                      {action.label}
-                    </h3>
-                    <p className="text-muted-foreground text-sm">
-                      {action.description}
-                    </p>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-background flex flex-col">
+      <MainContent
+        initialMessage={initialMessage}
+        setInitialMessage={setInitialMessage}
+        isLoading={isLoading}
+        handleStartChat={handleStartChat}
+        handleKeyPress={handleKeyPress}
+        quickActions={quickActions}
+        handleQuickAction={handleQuickAction}
+        user={user}
+        isAdmin={isAdmin}
+        signOut={signOut}
+        navigate={navigate}
+      />
     </div>
   );
 };
+
+// ─── Sub-componente separado para reuso ───
+function MainContent({
+  initialMessage,
+  setInitialMessage,
+  isLoading,
+  handleStartChat,
+  handleKeyPress,
+  quickActions,
+  handleQuickAction,
+  user,
+  isAdmin,
+  signOut,
+  navigate,
+  showBack,
+  handleBackToChat,
+}: any) {
+  return (
+    <div className="flex-1 flex flex-col">
+      {/* Header minimalista */}
+      <header className="flex items-center justify-between px-6 sm:px-8 py-4 border-b border-border/40">
+        <div className="flex items-center gap-3">
+          {showBack && (
+            <button
+              onClick={handleBackToChat}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors mr-2"
+            >
+              ← Voltar
+            </button>
+          )}
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-foreground tracking-tight">Sistema Start</span>
+            <span className="text-[10px] text-muted-foreground tracking-widest uppercase">by Nathalia Ouro</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <AdminButton />
+          <button
+            onClick={() => navigate('/suporte')}
+            title="Central de Suporte"
+            className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
+          >
+            <HelpCircle className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => navigate('/settings')}
+            title="Configurações"
+            className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
+          >
+            <Settings className="h-4 w-4" />
+          </button>
+          <button
+            onClick={signOut}
+            title="Sair"
+            className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
+      </header>
+
+      {/* Conteúdo central */}
+      <main className="flex-1 flex flex-col items-center justify-center px-4 py-12">
+        <div className="w-full max-w-2xl space-y-10">
+
+          {/* Hero */}
+          <div className="text-center space-y-3">
+            <div
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-2"
+              style={{ background: 'hsl(42 55% 50% / 0.1)', color: 'hsl(42 55% 38%)' }}
+            >
+              <Sparkles className="h-3 w-3" />
+              Mentora IA especializada em marketing digital
+            </div>
+            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground leading-[1.1]">
+              Como posso te{' '}
+              <span style={{ color: 'hsl(42 55% 46%)' }}>ajudar hoje?</span>
+            </h1>
+            <p className="text-base text-muted-foreground max-w-md mx-auto leading-relaxed">
+              Sou a Nathi, sua mentora expert. Estou aqui para te guiar na criação de produtos digitais e estratégias que vendem.
+            </p>
+          </div>
+
+          {/* Input */}
+          <div className="relative group">
+            <Textarea
+              placeholder="Descreva seu projeto ou dúvida..."
+              value={initialMessage}
+              onChange={(e) => setInitialMessage(e.target.value)}
+              onKeyDown={handleKeyPress}
+              className="w-full min-h-[120px] sm:min-h-[140px] pr-14 text-sm sm:text-base resize-none rounded-2xl border border-border/60 bg-card shadow-sm focus:shadow-md focus:border-primary/40 transition-all placeholder:text-muted-foreground/60 px-5 py-4"
+            />
+            <button
+              onClick={handleStartChat}
+              disabled={!initialMessage.trim() || isLoading}
+              className="absolute bottom-4 right-4 h-9 w-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+              style={{
+                background: initialMessage.trim() && !isLoading ? 'hsl(42 55% 50%)' : 'hsl(40 12% 88%)',
+                color: initialMessage.trim() && !isLoading ? '#ffffff' : 'hsl(30 8% 60%)',
+              }}
+            >
+              {isLoading
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Send className="h-4 w-4" />
+              }
+            </button>
+          </div>
+
+          {/* Quick actions */}
+          <div>
+            <p className="text-xs text-muted-foreground text-center mb-4 uppercase tracking-widest">
+              Começar com
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {quickActions.map((action: any, index: number) => (
+                <button
+                  key={index}
+                  onClick={() => handleQuickAction(action.prompt)}
+                  className="group flex flex-col items-start gap-3 p-4 rounded-2xl border border-border/50 bg-card hover:border-primary/30 hover:shadow-sm transition-all text-left"
+                >
+                  <div
+                    className="h-8 w-8 rounded-xl flex items-center justify-center"
+                    style={{ background: 'hsl(42 55% 50% / 0.1)' }}
+                  >
+                    <action.icon className="h-4 w-4" style={{ color: 'hsl(42 55% 46%)' }} />
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-sm font-medium text-foreground">{action.label}</span>
+                  </div>
+                  <ArrowRight
+                    className="h-3 w-3 text-muted-foreground/50 group-hover:translate-x-0.5 transition-transform"
+                    style={{ color: 'hsl(42 55% 50%)' }}
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </main>
+
+      {/* Footer minimalista */}
+      <footer className="text-center py-4 px-6">
+        <p className="text-xs text-muted-foreground/50">
+          Sistema Start by Nathalia Ouro · IA especializada em marketing digital
+        </p>
+      </footer>
+    </div>
+  );
+}
 
 export default Index;
