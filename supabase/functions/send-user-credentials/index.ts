@@ -61,7 +61,7 @@ serve(async (req) => {
 
     // Check if user already exists AND get user details
     const { data: existingUser, error: checkError } = await supabaseAdmin.auth.admin.listUsers();
-    
+
     if (checkError) {
       console.error("❌ Erro ao verificar usuários existentes:", checkError);
       return new Response(
@@ -71,37 +71,37 @@ serve(async (req) => {
     }
 
     const userExists = existingUser.users.find(user => user.email === email);
-    
+
     if (userExists) {
       console.log("⚠️ Usuário já existe:", email, "ID:", userExists.id);
-      
+
       // Verificar se tem profile completo
       const { data: profileData, error: profileError } = await supabaseAdmin
         .from('profiles')
         .select('*')
         .eq('user_id', userExists.id)
         .single();
-      
+
       if (profileError && profileError.code === 'PGRST116') {
         // Usuário existe mas não tem profile - dados incompletos, vamos limpar e recriar
         console.log("🧹 Usuário existe mas com dados incompletos. Limpando...");
-        
+
         try {
           // Limpar dados relacionados via função SQL
           const { error: cleanupError } = await supabaseAdmin.rpc('cleanup_incomplete_user', {
             user_email: email
           });
-          
+
           if (cleanupError) {
             console.error("❌ Erro na limpeza SQL:", cleanupError);
           }
-          
+
           // Remover usuário do auth
           const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userExists.id);
           if (deleteError) {
             console.error("❌ Erro ao remover usuário incompleto:", deleteError);
             return new Response(
-              JSON.stringify({ 
+              JSON.stringify({
                 error: `Email já está em uso. Erro na limpeza: ${deleteError.message}`,
                 suggestion: 'Use outro email ou contate o administrador'
               }),
@@ -113,7 +113,7 @@ serve(async (req) => {
         } catch (cleanupError) {
           console.error("❌ Erro na limpeza:", cleanupError);
           return new Response(
-            JSON.stringify({ 
+            JSON.stringify({
               error: 'Email já está em uso. Erro na limpeza de dados. Contate o suporte.',
               suggestion: 'Use outro email ou contate o administrador'
             }),
@@ -123,7 +123,7 @@ serve(async (req) => {
       } else {
         // Usuário existe e tem profile completo
         return new Response(
-          JSON.stringify({ 
+          JSON.stringify({
             error: 'Usuário já existe com este email e tem dados completos',
             suggestion: 'Use a função de redefinir senha ou escolha outro email'
           }),
@@ -227,54 +227,97 @@ serve(async (req) => {
     // Send email with credentials
     console.log("📧 Enviando email com credenciais...");
     const resend = new Resend(resendApiKey);
-    
+
     const emailResponse = await resend.emails.send({
       from: 'Sistema Start <noreply@sistemastart.com>',
       to: [email],
       subject: '🎉 Bem-vindo ao Sistema Start - Suas Credenciais de Acesso',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; text-align: center;">
-            <h1 style="margin: 0; font-size: 28px;">🎉 Bem-vindo ao Sistema Start!</h1>
-            <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Sua conta foi criada com sucesso</p>
-          </div>
-          
-          <div style="background: #f8f9fa; padding: 30px; border-radius: 10px; margin: 20px 0;">
-            <h2 style="color: #333; margin-top: 0;">👋 Olá, ${fullName}!</h2>
-            <p style="color: #666; line-height: 1.6;">
-              Sua conta no Sistema Start foi criada com sucesso! Aqui estão suas credenciais de acesso:
-            </p>
-            
-            <div style="background: white; padding: 20px; border-radius: 8px; border: 2px solid #e9ecef; margin: 20px 0;">
-              <h3 style="color: #333; margin-top: 0;">🔐 Suas Credenciais:</h3>
-              <p><strong>📧 Email:</strong> ${email}</p>
-              <p><strong>🔑 Senha Temporária:</strong> <code style="background: #f1f3f4; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${tempPassword}</code></p>
-              <p><strong>🎯 Plano:</strong> ${planType || 'Premium'}</p>
-              <p><strong>🎫 Código de Acesso:</strong> <code style="background: #f1f3f4; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${accessCode}</code></p>
-            </div>
-            
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${siteUrl}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
-                🚀 Acessar Sistema Start
-              </a>
-            </div>
-            
-            <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin: 20px 0;">
-              <h4 style="color: #856404; margin-top: 0;">⚠️ Importante:</h4>
-              <ul style="color: #856404; margin: 0;">
-                <li>Esta é uma senha temporária. Recomendamos alterá-la no primeiro acesso.</li>
-                <li>Guarde bem suas credenciais em local seguro.</li>
-                <li>Se tiver dúvidas, entre em contato com nosso suporte.</li>
-              </ul>
-            </div>
-          </div>
-          
-          <div style="text-align: center; color: #666; font-size: 14px; margin-top: 30px;">
-            <p>📧 Este email foi enviado automaticamente pelo Sistema Start</p>
-            <p>Se você não esperava este email, pode ignorá-lo com segurança.</p>
-          </div>
-        </div>
-      `,
+      html: `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light" />
+  <meta name="supported-color-schemes" content="light" />
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;color:#333333;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f4;padding:30px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:30px;text-align:center;border-radius:10px 10px 0 0;">
+              <h1 style="margin:0;font-size:26px;color:#ffffff;font-family:Arial,sans-serif;">🎉 Bem-vindo ao Sistema Start!</h1>
+              <p style="margin:10px 0 0 0;font-size:15px;color:#e8e8ff;font-family:Arial,sans-serif;">Sua conta foi criada com sucesso</p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="background-color:#ffffff;padding:30px;">
+              <h2 style="margin:0 0 16px 0;color:#333333;font-family:Arial,sans-serif;font-size:20px;">👋 Olá, ${fullName}!</h2>
+              <p style="color:#555555;line-height:1.7;margin-bottom:20px;font-family:Arial,sans-serif;font-size:15px;">
+                Sua conta no Sistema Start foi criada com sucesso! Aqui estão suas credenciais de acesso:
+              </p>
+
+              <!-- Credentials Box -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="background-color:#f8f9fa;border:2px solid #e9ecef;border-radius:8px;padding:20px;">
+                    <h3 style="margin:0 0 16px 0;color:#333333;font-family:Arial,sans-serif;font-size:16px;">🔐 Suas Credenciais:</h3>
+                    <p style="margin:0 0 10px 0;color:#444444;font-family:Arial,sans-serif;font-size:14px;">
+                      <strong style="color:#333333;">📧 Email:</strong> <span style="color:#555555;">${email}</span>
+                    </p>
+                    <p style="margin:0 0 10px 0;color:#444444;font-family:Arial,sans-serif;font-size:14px;">
+                      <strong style="color:#333333;">🔑 Senha Temporária:</strong> <code style="background-color:#f1f3f4;color:#333333;padding:3px 8px;border-radius:4px;font-family:monospace,Courier New,monospace;font-size:14px;">${tempPassword}</code>
+                    </p>
+                    <p style="margin:0 0 10px 0;color:#444444;font-family:Arial,sans-serif;font-size:14px;">
+                      <strong style="color:#333333;">🎯 Plano:</strong> <span style="color:#555555;">${planType || 'Premium'}</span>
+                    </p>
+                    <p style="margin:0;color:#444444;font-family:Arial,sans-serif;font-size:14px;">
+                      <strong style="color:#333333;">🎫 Código de Acesso:</strong> <code style="background-color:#f1f3f4;color:#333333;padding:3px 8px;border-radius:4px;font-family:monospace,Courier New,monospace;font-size:14px;">${accessCode}</code>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA Button -->
+              <div style="text-align:center;margin:30px 0;">
+                <a href="${siteUrl}" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:bold;font-family:Arial,sans-serif;font-size:15px;display:inline-block;">🚀 Acessar Sistema Start</a>
+              </div>
+
+              <!-- Warning box -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="background-color:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:15px 18px;">
+                    <h4 style="margin:0 0 10px 0;color:#7a5c00;font-family:Arial,sans-serif;font-size:14px;">⚠️ Importante:</h4>
+                    <ul style="margin:0;padding-left:18px;color:#7a5c00;font-family:Arial,sans-serif;font-size:13px;line-height:1.8;">
+                      <li>Esta é uma senha temporária. Recomendamos alterá-la no primeiro acesso.</li>
+                      <li>Guarde bem suas credenciais em local seguro.</li>
+                      <li>Se tiver dúvidas, entre em contato com nosso suporte.</li>
+                    </ul>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#333333;color:#cccccc;padding:20px;text-align:center;border-radius:0 0 10px 10px;">
+              <p style="margin:0;font-family:Arial,sans-serif;font-size:13px;color:#cccccc;">📧 Este email foi enviado automaticamente pelo Sistema Start</p>
+              <p style="margin:6px 0 0 0;font-size:12px;color:#aaaaaa;font-family:Arial,sans-serif;">Se você não esperava este email, pode ignorá-lo com segurança.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
     });
 
     if (emailResponse.error) {
@@ -306,9 +349,9 @@ serve(async (req) => {
   } catch (error) {
     console.error("💥 Erro não tratado:", error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: 'Erro interno no servidor',
-        details: error.message 
+        details: error.message
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

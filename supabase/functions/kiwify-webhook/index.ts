@@ -30,7 +30,7 @@ function generateAccessCode(): string {
 // Função para enviar email com código de acesso
 async function sendAccessCodeEmail(email: string, name: string, accessCode: string) {
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-  
+
   if (!RESEND_API_KEY) {
     console.warn('RESEND_API_KEY não configurada, email não será enviado');
     return;
@@ -47,62 +47,92 @@ async function sendAccessCodeEmail(email: string, name: string, accessCode: stri
         from: 'Sistema Start <noreply@sistemastart.com>',
         to: [email],
         subject: '🎉 Seu código de acesso ao Sistema Start',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; color: white;">
-              <h1 style="margin: 0; font-size: 28px;">🚀 Bem-vindo ao Sistema Start!</h1>
-              <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Mentoria Expert em Marketing Digital</p>
-            </div>
-            
-            <div style="padding: 30px; background: #f8f9fa;">
-              <h2 style="color: #333; margin-bottom: 20px;">Olá, ${name}!</h2>
-              
-              <p style="color: #666; line-height: 1.6; margin-bottom: 25px;">
-                🎉 <strong>Parabéns!</strong> Seu pagamento foi confirmado com sucesso! 
+        html: `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light" />
+  <meta name="supported-color-schemes" content="light" />
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;color:#333333;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f4;padding:30px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:30px;text-align:center;border-radius:10px 10px 0 0;">
+              <h1 style="margin:0;font-size:26px;color:#ffffff;font-family:Arial,sans-serif;">🚀 Bem-vindo ao Sistema Start!</h1>
+              <p style="margin:10px 0 0 0;font-size:15px;color:#e8e8ff;font-family:Arial,sans-serif;">Mentoria Expert em Marketing Digital</p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="background-color:#ffffff;padding:30px;">
+              <h2 style="margin:0 0 16px 0;color:#333333;font-family:Arial,sans-serif;font-size:20px;">Olá, ${name}!</h2>
+              <p style="color:#555555;line-height:1.7;margin-bottom:25px;font-family:Arial,sans-serif;font-size:15px;">
+                🎉 <strong style="color:#333333;">Parabéns!</strong> Seu pagamento foi confirmado com sucesso!
                 Agora você tem acesso completo ao Sistema Start.
               </p>
-              
-              <div style="background: white; border: 2px solid #667eea; border-radius: 10px; padding: 25px; text-align: center; margin: 25px 0;">
-                <h3 style="color: #667eea; margin-bottom: 15px;">🔑 Seu Código de Acesso:</h3>
-                <div style="background: #667eea; color: white; padding: 15px 25px; border-radius: 8px; font-family: monospace; font-size: 24px; font-weight: bold; letter-spacing: 2px;">
-                  ${accessCode}
-                </div>
-                <p style="color: #666; font-size: 14px; margin-top: 15px;">
-                  ⚠️ Guarde este código com segurança. Você precisará dele para criar sua conta.
-                </p>
-              </div>
-              
-              <div style="margin: 25px 0;">
-                <h4 style="color: #333;">📋 Como acessar o sistema:</h4>
-                <ol style="color: #666; line-height: 1.8;">
-                  <li>Acesse: <a href="https://sistemastart.com/auth" style="color: #667eea;">sistemastart.com/auth</a></li>
-                  <li>Clique em "Cadastrar"</li>
-                  <li>Digite seu código de acesso: <strong>${accessCode}</strong></li>
+
+              <!-- Access Code Box -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="background-color:#f0f0ff;border:2px solid #667eea;border-radius:10px;padding:25px;text-align:center;">
+                    <p style="margin:0 0 12px 0;color:#667eea;font-weight:bold;font-family:Arial,sans-serif;font-size:16px;">🔑 Seu Código de Acesso:</p>
+                    <div style="background-color:#667eea;color:#ffffff;padding:14px 24px;border-radius:8px;font-family:monospace,Courier New,monospace;font-size:24px;font-weight:bold;letter-spacing:3px;display:inline-block;">${accessCode}</div>
+                    <p style="color:#666666;font-size:13px;margin:14px 0 0 0;font-family:Arial,sans-serif;">⚠️ Guarde este código com segurança. Você precisará dele para criar sua conta.</p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Steps -->
+              <div style="margin:25px 0;">
+                <h4 style="color:#333333;margin:0 0 10px 0;font-family:Arial,sans-serif;font-size:15px;">📋 Como acessar o sistema:</h4>
+                <ol style="color:#555555;line-height:2;padding-left:20px;margin:0;font-family:Arial,sans-serif;font-size:14px;">
+                  <li>Acesse: <a href="https://sistemastart.com/auth" style="color:#667eea;text-decoration:underline;">sistemastart.com/auth</a></li>
+                  <li>Clique em <strong style="color:#333333;">"Cadastrar"</strong></li>
+                  <li>Digite seu código de acesso: <strong style="color:#333333;">${accessCode}</strong></li>
                   <li>Preencha seus dados e comece a usar!</li>
                 </ol>
               </div>
-              
-              <div style="background: #e8f4fd; border-left: 4px solid #2196F3; padding: 15px; margin: 25px 0;">
-                <h4 style="color: #2196F3; margin: 0 0 10px 0;">💡 Dica importante:</h4>
-                <p style="color: #666; margin: 0; line-height: 1.6;">
-                  Após criar sua conta, você terá acesso ilimitado à nossa mentora expert em marketing digital. 
-                  Faça perguntas detalhadas para obter estratégias personalizadas!
-                </p>
+
+              <!-- Tip box -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="background-color:#e8f4fd;border-left:4px solid #2196F3;padding:14px 16px;border-radius:0 6px 6px 0;">
+                    <p style="margin:0 0 6px 0;color:#1565C0;font-weight:bold;font-family:Arial,sans-serif;font-size:14px;">💡 Dica importante:</p>
+                    <p style="margin:0;color:#1565C0;line-height:1.6;font-family:Arial,sans-serif;font-size:13px;">
+                      Após criar sua conta, você terá acesso ilimitado à nossa mentora expert em marketing digital.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA Button -->
+              <div style="text-align:center;margin-top:28px;">
+                <a href="https://sistemastart.com/auth" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:bold;font-family:Arial,sans-serif;font-size:15px;display:inline-block;">🚀 Acessar Sistema Agora</a>
               </div>
-              
-              <div style="text-align: center; margin-top: 30px;">
-                <a href="https://sistemastart.com/auth" style="background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                  🚀 Acessar Sistema Agora
-                </a>
-              </div>
-            </div>
-            
-            <div style="background: #333; color: #ccc; padding: 20px; text-align: center; font-size: 14px;">
-              <p style="margin: 0;">Sistema Start - Mentoria Expert em Marketing Digital</p>
-              <p style="margin: 5px 0 0 0; opacity: 0.8;">Transforme seu marketing digital com IA</p>
-            </div>
-          </div>
-        `,
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#333333;color:#cccccc;padding:20px;text-align:center;border-radius:0 0 10px 10px;">
+              <p style="margin:0;font-family:Arial,sans-serif;font-size:13px;color:#cccccc;">Sistema Start - Mentoria Expert em Marketing Digital</p>
+              <p style="margin:6px 0 0 0;font-size:12px;color:#aaaaaa;font-family:Arial,sans-serif;">Transforme seu marketing digital com IA</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
       }),
     });
 
@@ -131,16 +161,16 @@ serve(async (req) => {
     );
 
     const webhookData: KiwifyWebhookData = await req.json();
-    
+
     console.log('Received Kiwify webhook:', webhookData);
 
     // Gerar código de acesso único
     const accessCode = generateAccessCode();
-    
+
     // Determine plan type and expiration based on product
     let planType = 'premium';
     let expiresAt = null;
-    
+
     // Set expiration date (180 days from now for premium plans - 6 months)
     if (webhookData.order_status === 'paid') {
       const expirationDate = new Date();
@@ -186,29 +216,29 @@ serve(async (req) => {
     });
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: 'Webhook processed successfully',
         access_code: accessCode,
-        subscription 
+        subscription
       }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
 
   } catch (error) {
     console.error('Error processing webhook:', error);
-    
+
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: 'Internal server error',
-        message: error.message 
+        message: error.message
       }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }
