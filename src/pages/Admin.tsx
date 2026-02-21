@@ -192,22 +192,48 @@ export function Admin() {
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
-        const data = evt.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
+        let data = evt.target?.result as string;
+
+        // Detectar se é CSV separado por ponto e vírgula (comum no Brasil)
+        const isCsv = file.name.toLowerCase().endsWith('.csv');
+        let workbook;
+
+        if (isCsv) {
+          // Verificar se usa ; como separador
+          const firstLine = data.split('\n')[0] || '';
+          if (firstLine.includes(';') && !firstLine.includes(',')) {
+            // Converter ; para , para que o xlsx consiga ler
+            data = data.replace(/;/g, ',');
+          }
+          workbook = XLSX.read(data, { type: 'binary', raw: true });
+        } else {
+          workbook = XLSX.read(data, { type: 'binary' });
+        }
+
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json<any>(sheet);
 
-        // Mapear colunas (aceita variações de nome)
+        console.log('📋 Colunas encontradas:', jsonData.length > 0 ? Object.keys(jsonData[0]) : 'nenhuma');
+        console.log('📋 Primeira linha:', jsonData[0]);
+
+        // Mapear colunas (aceita variações de nome — inclui "Cliente" da Kiwify)
         const parsed = jsonData.map((row: any) => ({
           email: (row.email || row.Email || row.EMAIL || row['E-mail'] || row['e-mail'] || '').toString().trim(),
-          fullName: (row.nome || row.Nome || row.NOME || row.name || row.Name || row.full_name || row.fullName || row['Nome Completo'] || '').toString().trim(),
+          fullName: (
+            row.Cliente || row.cliente || row.CLIENTE ||
+            row.nome || row.Nome || row.NOME ||
+            row.name || row.Name ||
+            row.full_name || row.fullName ||
+            row['Nome Completo'] || row['nome completo'] ||
+            ''
+          ).toString().trim(),
           role: (row.role || row.Role || row.funcao || row.Funcao || row['Função'] || 'user').toString().trim().toLowerCase() as 'user' | 'admin',
           planType: (row.plano || row.Plano || row.plan || row.Plan || row.planType || row.plan_type || 'free').toString().trim().toLowerCase() as 'free' | 'premium' | 'pro',
         })).filter((u: any) => u.email && u.fullName);
 
         if (parsed.length === 0) {
-          toast.error('Nenhum usuário válido encontrado no arquivo. Verifique se as colunas "email" e "nome" existem.');
+          toast.error('Nenhum usuário válido encontrado. Verifique se as colunas "email" e "nome" (ou "Cliente") existem.');
           return;
         }
 

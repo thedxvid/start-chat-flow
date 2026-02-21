@@ -9,7 +9,7 @@ export default function Landing() {
   const navigate = useNavigate();
 
   const handleCheckout = () => {
-    window.open('https://pay.kiwify.com.br/PQxnaPy', '_blank');
+    window.open('https://pay.kiwify.com.br/CeeBh4c', '_blank');
   };
 
   const handleLogin = () => {
