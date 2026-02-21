@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 
 export default function Landing() {
   const navigate = useNavigate();
-  
+
   const handleCheckout = () => {
     window.open('https://pay.kiwify.com.br/PQxnaPy', '_blank');
   };
@@ -27,9 +27,9 @@ export default function Landing() {
               <h1 className="text-2xl font-bold text-foreground">Sistema Start</h1>
             </div>
             <div className="flex items-center gap-3">
-              <Button 
-                onClick={handleLogin} 
-                variant="ghost" 
+              <Button
+                onClick={handleLogin}
+                variant="ghost"
                 className="text-foreground hover:text-primary"
               >
                 <LogIn className="h-4 w-4 mr-2" />
@@ -47,22 +47,22 @@ export default function Landing() {
       <section className="py-20 px-4">
         <div className="container mx-auto text-center max-w-4xl">
           <Badge variant="secondary" className="mb-6 bg-primary/10 text-primary border-primary/20">
-            🚀 Mentoria Expert em Marketing Digital
+            ✨ Sistema Start — by Nathalia Ouro
           </Badge>
-          
+
           <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-6 leading-tight">
-            Transforme seu <span className="text-primary">Marketing Digital</span> com IA
+            Sua mentora expert para <span className="text-primary">criar e vender</span> produtos digitais
           </h1>
-          
+
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Acesso direto a uma mentora expert em marketing digital que te ajuda a criar estratégias vencedoras, 
-            otimizar campanhas e aumentar suas vendas.
+            A Nathi é sua mentora IA do Sistema Start. Ela te guia passo a passo para criar e-books, cursos, mentorias
+            e estratégias de marketing que realmente vendem.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-            <Button 
+            <Button
               onClick={handleCheckout}
-              size="lg" 
+              size="lg"
               className="bg-gradient-primary hover:bg-primary-hover text-lg px-8 py-6 shadow-elegant"
             >
               Começar Agora <ArrowRight className="ml-2 h-5 w-5" />
@@ -77,7 +77,7 @@ export default function Landing() {
                 <Star key={star} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
               ))}
             </div>
-            <span className="text-sm">Mais de 500+ profissionais já transformaram seus resultados</span>
+            <span className="text-sm">Mais de 500+ profissionais já criaram seus produtos digitais</span>
           </div>
         </div>
       </section>
@@ -90,7 +90,7 @@ export default function Landing() {
               Por que escolher o Sistema Start?
             </h2>
             <p className="text-muted-foreground text-lg">
-              Uma mentora expert disponível 24/7 para acelerar seus resultados
+              A Nathi, sua mentora IA, está disponível 24/7 para acelerar seus resultados
             </p>
           </div>
 
@@ -100,7 +100,7 @@ export default function Landing() {
                 <MessageCircle className="h-12 w-12 text-primary mb-4" />
                 <CardTitle>Conversas Ilimitadas</CardTitle>
                 <CardDescription>
-                  Tire todas suas dúvidas sem limitações. Converse quanto precisar para dominar o marketing digital.
+                  Tire todas suas dúvidas sem limitações. Converse com a Nathi quanto precisar para criar seu produto digital.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -120,7 +120,7 @@ export default function Landing() {
                 <Crown className="h-12 w-12 text-primary mb-4" />
                 <CardTitle>Expertise Profissional</CardTitle>
                 <CardDescription>
-                  Conhecimento de uma mentora com anos de experiência em marketing digital e vendas online.
+                  Conhecimento da Nathalia Ouro em marketing digital, produtos digitais e vendas online.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -139,14 +139,14 @@ export default function Landing() {
 
           <div className="grid md:grid-cols-2 gap-6">
             {[
-              'Criar campanhas de alta conversão',
-              'Otimizar funis de vendas',
+              'Criar e-books, cursos e mentorias do zero',
+              'Estruturar funis de vendas que convertem',
               'Dominar tráfego pago (Facebook e Google Ads)',
               'Estratégias de copy persuasiva',
-              'Automação de marketing eficiente',
-              'Análise de métricas e ROI',
-              'Posicionamento de marca forte',
-              'Estratégias de retenção de clientes'
+              'Lançar seu produto digital com confiança',
+              'Precificar e posicionar seus produtos',
+              'Construir audiência e autoridade',
+              'Estratégias de marketing e vendas online'
             ].map((benefit, index) => (
               <div key={index} className="flex items-center gap-3">
                 <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
@@ -164,11 +164,11 @@ export default function Landing() {
             <div className="absolute top-4 right-4">
               <Badge className="bg-primary text-primary-foreground">Oferta Especial</Badge>
             </div>
-            
+
             <CardHeader className="text-center pb-4">
               <CardTitle className="text-2xl">Acesso Completo</CardTitle>
               <CardDescription className="text-lg">
-                Mentoria expert em marketing digital
+                Mentoria expert by Nathalia Ouro
               </CardDescription>
               <div className="mt-4">
                 <span className="text-4xl font-bold text-primary">R$ 297</span>
@@ -191,7 +191,7 @@ export default function Landing() {
                 </div>
               ))}
 
-              <Button 
+              <Button
                 onClick={handleCheckout}
                 className="w-full mt-6 bg-gradient-primary hover:bg-primary-hover text-lg py-6"
                 size="lg"
@@ -211,7 +211,7 @@ export default function Landing() {
       <footer className="py-8 px-4 border-t border-border/40">
         <div className="container mx-auto text-center">
           <p className="text-muted-foreground">
-            © 2024 Sistema Start. Todos os direitos reservados.
+            © 2025 Sistema Start by Nathalia Ouro · Mentoria Expert em Marketing Digital
           </p>
         </div>
       </footer>
