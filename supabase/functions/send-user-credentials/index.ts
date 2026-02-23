@@ -32,6 +32,9 @@ async function ensureAuthTrigger() {
           full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), profiles.full_name),
           updated_at = NOW();
         RETURN NEW;
+      EXCEPTION WHEN OTHERS THEN
+        RAISE LOG 'handle_new_user trigger error for %: %', NEW.email, SQLERRM;
+        RETURN NEW;
       END;
       $$ LANGUAGE plpgsql SECURITY DEFINER;
     `;
