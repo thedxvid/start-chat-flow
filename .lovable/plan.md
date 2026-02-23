@@ -1,41 +1,65 @@
 
 
-## Reenviar acesso em massa para os ultimos 92 usuarios
+## Reenviar para os 42 usuarios com erro
 
 ### O que sera feito
 
-Adicionar um botao "Reenviar Acesso em Massa" no painel admin que permite selecionar os ultimos N usuarios e reenviar credenciais (nova senha + email) para todos de uma vez, usando a funcao `resetUserCredentials` que ja existe e funciona corretamente.
+Adicionar um botao "Reenviar para Falhos" na tela de resultados do reenvio em massa. Quando o usuario clica, o sistema pega apenas os emails que falharam do `bulkResetResults` e executa o `bulkResetCredentials` novamente somente para esses usuarios.
 
-### Alteracoes
+### Alteracao
 
-**1. `src/hooks/useAdmin.ts`** - Nova funcao `bulkResetCredentials`
+**`src/pages/Admin.tsx`**
 
-- Recebe uma lista de usuarios `{ email, fullName, planType }[]`
-- Para cada usuario, chama `resetUserCredentials` (que ja gera senha no formato `START-XXXXXXXX` e envia email via Edge Function com o link correto)
-- Adiciona delay de 1 segundo entre envios para nao sobrecarregar a API do Resend (limite de rate)
-- Retorna array de resultados (sucesso/erro por usuario)
-- Expoe a funcao no return do hook
+1. Adicionar uma funcao `handleRetryFailed` que:
+   - Filtra os resultados com `success === false` do `bulkResetResults`
+   - Busca os dados completos (nome, plano) dos usuarios correspondentes na lista `users`
+   - Chama `bulkResetCredentials` apenas para esses usuarios
+   - Atualiza os resultados na tela
 
-**2. `src/pages/Admin.tsx`** - Botao e dialog para reenvio em massa
-
-- Adicionar botao "Reenviar Acesso em Massa" na aba de gerenciamento de usuarios
-- Dialog com:
-  - Campo numerico para definir quantos usuarios (padrao: 92)
-  - Preview dos usuarios que serao afetados (nome + email)
-  - Barra de progresso durante o envio
-  - Resultados finais mostrando sucesso/falha por usuario
-- Os usuarios sao ordenados por `created_at` descendente (mais recentes primeiro) e pega os primeiros N
+2. Adicionar um botao "Reenviar para Falhos" no `DialogFooter`, visivel apenas quando existem resultados com erros:
+   - Aparece ao lado do botao "Fechar" quando `bulkResetResults` tem itens com `success === false`
+   - Ao clicar, reseta o progresso e executa apenas para os que falharam
 
 ### Detalhes tecnicos
 
-A funcao `resetUserCredentials` ja existente faz:
-1. Gera senha `START-XXXXXXXX`
-2. Chama Edge Function `send-user-credentials` com `mode: 'reset'`
-3. A Edge Function atualiza a senha no Supabase Auth e envia email com o link correto (`sistemastart.com/auth`)
+```typescript
+const handleRetryFailed = async () => {
+  const failedEmails = bulkResetResults?.filter(r => !r.success) || [];
+  if (failedEmails.length === 0) return;
 
-O reenvio em massa simplesmente itera sobre os usuarios chamando essa funcao para cada um, com um delay de 1s entre chamadas para respeitar rate limits.
+  const usersList = failedEmails.map(f => {
+    const user = users.find(u => u.email === f.email);
+    return {
+      email: f.email,
+      fullName: user?.profile?.full_name || f.email,
+      planType: user?.subscription?.plan_type || 'premium'
+    };
+  });
 
-### Estimativa de tempo
+  setBulkResetting(true);
+  setBulkResetProgress(0);
+  setBulkResetTotal(usersList.length);
+  setBulkResetResults(null);
 
-Com 92 usuarios e delay de 1s entre cada, o processo levara aproximadamente 2 minutos. A barra de progresso mostrara o andamento em tempo real.
+  const results = await bulkResetCredentials(usersList, (current, total) => {
+    setBulkResetProgress(current);
+    setBulkResetTotal(total);
+  });
+
+  setBulkResetResults(results);
+  setBulkResetting(false);
+};
+```
+
+Botao no DialogFooter:
+```tsx
+{bulkResetResults && bulkResetResults.filter(r => !r.success).length > 0 && (
+  <Button onClick={handleRetryFailed} disabled={bulkResetting}>
+    <RefreshCw className="h-4 w-4 mr-2" />
+    Reenviar para {bulkResetResults.filter(r => !r.success).length} Falho(s)
+  </Button>
+)}
+```
+
+Nenhum outro arquivo precisa ser alterado. A funcao `bulkResetCredentials` do hook ja suporta receber qualquer lista de usuarios.
 
