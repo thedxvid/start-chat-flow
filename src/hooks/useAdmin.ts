@@ -124,52 +124,60 @@ export function useAdmin() {
 
       console.log('📨 Resposta da Edge Function:', { emailData, emailError });
 
+      // Parse response if it came back as string
+      let parsedData = emailData;
+      if (typeof emailData === 'string') {
+        try {
+          parsedData = JSON.parse(emailData);
+        } catch {
+          console.error('❌ Resposta não é JSON válido:', emailData);
+          throw new Error('Resposta inválida da função de criação');
+        }
+      }
+
+      console.log('📨 Dados parseados:', parsedData);
+
       // Verificar se houve erro na chamada da função
       if (emailError) {
         console.error('❌ Erro detalhado da Edge Function:', emailError);
-
-        // Tratamento específico para erro 409 (conflito - usuário já existe)
         if (emailError.message?.includes('409') || emailError.message?.includes('Conflict')) {
           throw new Error(`Email ${userData.email} já está registrado no sistema`);
         }
-
         throw new Error(`Erro ao criar usuário: ${emailError.message}`);
       }
 
       // Verificar se a resposta existe
-      if (!emailData) {
+      if (!parsedData) {
         console.error('❌ Resposta vazia da Edge Function');
         throw new Error('Resposta vazia da função de criação');
       }
 
       // Verificar se houve erro na resposta da função
-      if (emailData.error) {
-        console.error('❌ Erro retornado pela Edge Function:', emailData.error);
-
-        if (emailData.error.includes('já existe') || emailData.error.includes('already exists')) {
+      if (parsedData.error) {
+        console.error('❌ Erro retornado pela Edge Function:', parsedData.error);
+        if (parsedData.error.includes('já existe') || parsedData.error.includes('already exists')) {
           throw new Error(`Email ${userData.email} já está registrado no sistema`);
         }
-
-        throw new Error(emailData.error);
+        throw new Error(parsedData.error);
       }
 
       // Verificar se foi bem-sucedido
-      if (!emailData.success) {
-        console.error('❌ Falha na Edge Function:', emailData);
+      if (!parsedData.success) {
+        console.error('❌ Falha na Edge Function:', parsedData);
         throw new Error('Falha na criação do usuário');
       }
 
-      console.log('✅ Usuário criado e email enviado com sucesso:', emailData);
+      console.log('✅ Usuário criado e email enviado com sucesso:', parsedData);
 
       // Atualizar lista de usuários
       await fetchUsers();
 
       return {
         success: true,
-        message: emailData.warning
-          ? `Usuário criado com sucesso! ${emailData.warning}. Credenciais: ${userData.email} / ${tempPassword}`
+        message: parsedData.warning
+          ? `Usuário criado com sucesso! ${parsedData.warning}. Credenciais: ${userData.email} / ${tempPassword}`
           : `Usuário criado com sucesso! As credenciais foram enviadas para ${userData.email}`,
-        userId: emailData.userId,
+        userId: parsedData.userId,
         tempPassword: tempPassword
       };
     } catch (error) {
