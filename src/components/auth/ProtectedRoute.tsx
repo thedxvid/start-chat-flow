@@ -22,6 +22,12 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
+  // Detectar fluxo de recovery - redirecionar para /auth antes de qualquer bloqueio
+  const hash = window.location.hash;
+  if (hash && hash.includes('type=recovery')) {
+    return <Navigate to={`/auth${hash}`} replace />;
+  }
+
   if (!user) {
     return <Navigate to="/landing" replace />;
   }

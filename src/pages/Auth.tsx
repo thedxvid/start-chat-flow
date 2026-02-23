@@ -33,6 +33,7 @@ export default function Auth() {
   // Detectar token de recovery na URL (quando o usuário clica no link do email)
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      console.log('Auth event:', event);
       if (event === 'PASSWORD_RECOVERY') {
         setShowResetPassword(true);
         setShowForgotPassword(false);
@@ -40,13 +41,24 @@ export default function Auth() {
       }
     });
 
-    // Verificar hash na URL para recovery
-    const hash = window.location.hash;
-    if (hash && hash.includes('type=recovery')) {
-      setShowResetPassword(true);
-    }
+    // Verificar hash na URL para recovery (imediato + com delay para race conditions)
+    const checkHash = () => {
+      const hash = window.location.hash;
+      if (hash && hash.includes('type=recovery')) {
+        setShowResetPassword(true);
+        setShowForgotPassword(false);
+        setError('');
+      }
+    };
 
-    return () => subscription.unsubscribe();
+    checkHash();
+    // Re-check após pequeno delay para cobrir redirecionamentos
+    const timer = setTimeout(checkHash, 500);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timer);
+    };
   }, []);
 
   const handleResetPassword = async (e: React.FormEvent) => {
