@@ -1,50 +1,54 @@
 
-# Plano: Corrigir Fluxo de Recuperacao de Senha
 
-## Problema
+# Plano: Corrigir Modulos do Suporte, Upload de Imagem no Chat e Responsividade Mobile
 
-Quando o usuario clica no link de recuperacao de senha no email, ele e autenticado automaticamente pelo Supabase e redirecionado para a aplicacao. Porem, como esse usuario pode nao ter assinatura ativa, o `ProtectedRoute` bloqueia o acesso e exibe "Acesso Premium Necessario" em vez do formulario de redefinicao de senha.
+## 1. Remover Modulos 12 e 13 do Suporte
 
-O problema tem duas causas:
-1. O `ProtectedRoute` nao verifica se o usuario esta no meio de um fluxo de recuperacao de senha
-2. Nao existe uma rota dedicada `/reset-password` fora da protecao de assinatura
+No arquivo `src/pages/Suporte.tsx`, os modulos com id 12 ("Estrutura") e id 13 ("Estrutura Ativa") serao removidos do array `MODULES`. Os modulos restantes (14, 15, 16) terao seus ids renumerados para 12, 13, 14 respectivamente, mantendo a sequencia correta.
 
-## Solucao
+Tambem sera atualizado o arquivo `documentacao_agente_suporte.md` para refletir a mesma mudanca, removendo os modulos correspondentes e ajustando a numeracao.
 
-Duas alteracoes simples e eficazes:
+## 2. Upload de Imagem Funcionando no Chat Principal
 
-### 1. ProtectedRoute - Detectar recovery e redirecionar
+Atualmente, o chat principal (`ChatArea.tsx`) nao possui opcao de upload de imagem. Sera adicionado:
 
-Adicionar verificacao no `ProtectedRoute` para detectar tokens de recovery na URL hash. Se detectado, redirecionar automaticamente para `/auth` onde o formulario de nova senha ja existe.
+- Um botao de anexo (icone de imagem/clip) ao lado do textarea de input
+- Um input file hidden que aceita imagens
+- Preview da imagem selecionada com botao de remover
+- A imagem sera exibida na bolha da mensagem do usuario
 
-```text
-FLUXO CORRIGIDO:
-  1. Usuario clica no link do email
-  2. Supabase autentica e redireciona (com hash #type=recovery)
-  3. ProtectedRoute detecta "type=recovery" no hash
-  4. Redireciona para /auth (que NAO esta protegida)
-  5. Auth.tsx detecta o recovery e mostra o formulario de nova senha
-```
+**Nota**: A imagem sera enviada como base64 para exibicao local. A IA (OpenAI) nao recebera a imagem diretamente pois o modelo `gpt-4o-mini` via edge function nao esta configurado para processar imagens - mas o usuario vera a imagem anexada na conversa.
 
-### 2. Auth.tsx - Melhorar deteccao de recovery
+## 3. Responsividade Mobile
 
-Garantir que a pagina Auth detecte corretamente o evento `PASSWORD_RECOVERY` e tambem verifique a URL hash de forma robusta, incluindo apos redirecionamentos.
+### Landing Page (`src/pages/Landing.tsx`)
+- Reduzir tamanho do titulo hero em telas pequenas (text-3xl em mobile)
+- Ajustar padding do header para mobile
+- Tornar botoes do header mais compactos em mobile (esconder texto "Entrar", manter icone)
+- Ajustar espacamento das secoes de features e benefits
+- Cards de features em coluna unica no mobile
+
+### Index Page (`src/pages/Index.tsx`)
+- A sidebar fixa de 80px no layout com conversas nao aparece corretamente em mobile - sera escondida em telas pequenas
+- Quick actions em 2 colunas no mobile (ja esta assim)
+- Ajustar padding e tamanhos de fonte para telas menores
+
+### Suporte Page (`src/pages/Suporte.tsx`)
+- Ajustar titulo hero para telas menores
+- Melhorar espacamento dos cards de categorias em mobile
+- Floating chat window ocupar mais largura em mobile
+
+### ChatLayout / ChatArea
+- Ja possuem boa responsividade, apenas pequenos ajustes de padding
 
 ## Detalhes Tecnicos
 
-### Arquivo: `src/components/auth/ProtectedRoute.tsx`
-
-- Antes da verificacao de `hasAccess`, checar se `window.location.hash` contem `type=recovery`
-- Se sim, fazer `Navigate to="/auth"` passando o hash completo para que Auth.tsx possa processar
-
-### Arquivo: `src/pages/Auth.tsx`
-
-- Melhorar o `useEffect` de deteccao de recovery para tambem verificar o hash apos um pequeno delay (para cobrir race conditions)
-- Adicionar listener para `PASSWORD_RECOVERY` event que funcione mesmo apos redirecionamento
-
-## Resumo das Alteracoes
-
 | Arquivo | Acao |
 |---|---|
-| `src/components/auth/ProtectedRoute.tsx` | Detectar hash de recovery e redirecionar para /auth |
-| `src/pages/Auth.tsx` | Melhorar deteccao robusta do evento de recovery |
+| `src/pages/Suporte.tsx` | Remover modulos 12 e 13, renumerar restantes |
+| `documentacao_agente_suporte.md` | Remover modulos 12 e 13 da documentacao |
+| `src/components/chat/ChatArea.tsx` | Adicionar upload de imagem (botao, preview, exibicao) |
+| `src/pages/Landing.tsx` | Melhorar responsividade mobile (fontes, padding, layout) |
+| `src/pages/Index.tsx` | Esconder sidebar em mobile, ajustar layout |
+| `src/components/chat/ChatLayout.tsx` | Pequenos ajustes de responsividade |
+
