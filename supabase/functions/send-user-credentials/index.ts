@@ -19,18 +19,25 @@ async function ensureAuthTrigger() {
       CREATE OR REPLACE FUNCTION public.handle_new_user()
       RETURNS trigger AS $$
       BEGIN
-        INSERT INTO public.profiles (user_id, email, full_name, created_at, updated_at)
-        VALUES (
-          NEW.id,
-          NEW.email,
-          COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
-          NOW(),
-          NOW()
-        )
-        ON CONFLICT (user_id) DO UPDATE SET
-          email = EXCLUDED.email,
-          full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), profiles.full_name),
-          updated_at = NOW();
+        BEGIN
+          INSERT INTO public.profiles (user_id, email, full_name, created_at, updated_at)
+          VALUES (
+            NEW.id,
+            NEW.email,
+            COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
+            NOW(),
+            NOW()
+          );
+        EXCEPTION WHEN unique_violation THEN
+          UPDATE public.profiles
+          SET
+            user_id = NEW.id,
+            email = NEW.email,
+            full_name = COALESCE(NULLIF(NEW.raw_user_meta_data->>'full_name', ''), full_name),
+            updated_at = NOW()
+          WHERE email = NEW.email OR user_id = NEW.id;
+        END;
+
         RETURN NEW;
       EXCEPTION WHEN OTHERS THEN
         RAISE LOG 'handle_new_user trigger error for %: %', NEW.email, SQLERRM;
@@ -208,6 +215,15 @@ serve(async (req) => {
         }
       }
 
+      // Limpeza preventiva para remover resíduos de tentativas anteriores
+      const { error: preCleanupError } = await supabaseAdmin.rpc('cleanup_incomplete_user', {
+        user_email: email
+      });
+
+      if (preCleanupError) {
+        console.warn("⚠️ Limpeza preventiva falhou:", preCleanupError.message);
+      }
+
       // Garantir que o trigger auth inclui email no profiles
       await ensureAuthTrigger();
       console.log("✅ Email disponível, criando usuário...");
@@ -221,8 +237,16 @@ serve(async (req) => {
 
       if (createUserError) {
         console.error("❌ Erro ao criar usuário:", createUserError);
+
+        const normalizedMessage = (createUserError.message || '').toLowerCase();
+        const isTriggerDbError = normalizedMessage.includes('database error creating new user');
+
         return new Response(
-          JSON.stringify({ error: `Erro ao criar usuário: ${createUserError.message}` }),
+          JSON.stringify({
+            error: isTriggerDbError
+              ? 'Erro de banco ao criar usuário (conflito de dados antigos para este email). Tente novamente ou use a limpeza de usuários incompletos.'
+              : `Erro ao criar usuário: ${createUserError.message}`
+          }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
