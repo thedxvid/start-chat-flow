@@ -495,6 +495,41 @@ export function useAdmin() {
     }
   };
 
+  // Função para reenviar credenciais em massa
+  const bulkResetCredentials = async (
+    usersList: Array<{ email: string; fullName: string; planType?: string }>,
+    onProgress?: (current: number, total: number) => void
+  ) => {
+    const results: Array<{ email: string; success: boolean; error?: string }> = [];
+
+    for (let i = 0; i < usersList.length; i++) {
+      const userData = usersList[i];
+      try {
+        const result = await resetUserCredentials(userData.email, userData.fullName, userData.planType);
+        if (result.success) {
+          results.push({ email: userData.email, success: true });
+        } else {
+          results.push({ email: userData.email, success: false, error: result.error });
+        }
+      } catch (error: any) {
+        results.push({
+          email: userData.email,
+          success: false,
+          error: error.message || 'Erro desconhecido',
+        });
+      }
+
+      onProgress?.(i + 1, usersList.length);
+      // Delay de 1s para respeitar rate limits do Resend
+      if (i < usersList.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    await fetchUsers();
+    return results;
+  };
+
   return {
     isAdmin,
     loading,
@@ -509,6 +544,7 @@ export function useAdmin() {
     resendWelcomeEmail,
     cleanupIncompleteUsers,
     bulkCreateUsers,
-    resetUserCredentials
+    resetUserCredentials,
+    bulkResetCredentials
   };
 }
