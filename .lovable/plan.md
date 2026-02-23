@@ -1,114 +1,63 @@
 
 
-## Correção: Edge Function e Criação de Usuarios
+## Problem: "Database error creating new user"
 
-### Problemas Identificados
+The root cause is a broken PostgreSQL trigger on `auth.users` that you cannot see because you were looking at the **`public` schema** triggers. The trigger is on the `auth` schema.
 
-Apos analise detalhada, encontrei **3 problemas criticos** que impedem a criacao de usuarios:
+### What's happening
 
----
+1. Migration `20250721215901` created a trigger called `on_auth_user_created_simple` on `auth.users`
+2. This trigger calls `handle_new_user_simple()` which tries to INSERT into `profiles` with a column `is_admin_created` that **does not exist** in the current table, and also **omits** the required `email` column
+3. Even though the function has an EXCEPTION handler, Supabase GoTrue reports "Database error creating new user" when the trigger encounters issues
+4. The Edge Function then retries but gets the same error
 
-### Problema 1: Import do Resend incompativel com Deno Edge Runtime
+### Solution (2 steps)
 
-No arquivo `supabase/functions/send-user-credentials/index.ts`, linha 4:
+**Step 1: New database migration** - Create a migration that:
+- Drops the broken trigger `on_auth_user_created_simple` from `auth.users`
+- Drops the broken function `handle_new_user_simple()`
+- Creates a new, minimal trigger function `handle_new_user_v2()` that only inserts `user_id`, `full_name`, and `email` (columns that actually exist) with proper conflict handling and error catching
+- Creates a new trigger using this safe function
 
-```
-import { Resend } from "npm:resend@2.0.0";
-```
+**Step 2: Simplify the Edge Function** - Clean up `supabase/functions/send-user-credentials/index.ts`:
+- Remove the entire `ensureAuthTrigger` function and all trigger-repair logic (it never worked because you can't run raw SQL from the JS client)
+- Keep the existing manual profile/role/subscription creation logic (which is the actual working code)
+- Remove the retry-on-trigger-error block since the trigger will now be fixed
+- Result: a much simpler, more maintainable function
 
-O especificador `npm:` pode nao funcionar corretamente no edge runtime do Supabase. Precisa ser alterado para `https://esm.sh/resend@2.0.0` (mesmo formato ja corrigido no `send-password-reset`).
+### Technical details
 
----
+**New migration SQL:**
+```sql
+DROP TRIGGER IF EXISTS on_auth_user_created_simple ON auth.users;
+DROP FUNCTION IF EXISTS public.handle_new_user_simple();
 
-### Problema 2: Insert no `profiles` faltando campo obrigatorio `email`
+CREATE OR REPLACE FUNCTION public.handle_new_user_v2()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  INSERT INTO public.profiles (user_id, full_name, email)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
+    NEW.email
+  )
+  ON CONFLICT (user_id) DO NOTHING;
+  RETURN NEW;
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE WARNING 'handle_new_user_v2 error: %', SQLERRM;
+    RETURN NEW;
+END;
+$$;
 
-No Edge Function, linhas 189-197, ao criar o profile do usuario:
-
-```typescript
-.upsert({
-  user_id: userId,
-  full_name: fullName,
-  is_admin_created: true,  // campo pode nao existir
-  created_at: ...,
-  updated_at: ...
-})
-```
-
-A tabela `profiles` exige o campo `email` (obrigatorio conforme os types). Alem disso, o campo `is_admin_created` nao existe nos types da tabela, o que pode causar erro no insert. Sem o profile ser criado corretamente, o fluxo falha silenciosamente.
-
----
-
-### Problema 3: Formato de senha pode conter caracteres problematicos
-
-A geracao de senha usa `Math.random().toString(36).slice(-8)` que gera caracteres alfanumericos. Embora funcional, o `.slice(-8)` pode retornar menos de 8 caracteres em casos raros. Vamos usar um metodo mais robusto e garantir senhas de 8 caracteres sempre.
-
----
-
-### Plano de Correcoes
-
-#### Arquivo 1: `supabase/functions/send-user-credentials/index.ts`
-
-| Linha | Mudanca |
-|-------|---------|
-| 4 | Corrigir import: `npm:resend@2.0.0` para `https://esm.sh/resend@2.0.0` |
-| 189-197 | Adicionar campo `email` ao insert do profile e remover `is_admin_created` |
-
-Correcao do insert do profile:
-```typescript
-.upsert({
-  user_id: userId,
-  full_name: fullName,
-  email: email,
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString()
-})
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user_v2();
 ```
 
-#### Arquivo 2: `src/hooks/useAdmin.ts`
-
-| Linha | Mudanca |
-|-------|---------|
-| 107 | Melhorar geracao de senha para garantir 8 caracteres |
-| 452 | Mesma melhoria na funcao resetUserCredentials |
-
-Nova geracao de senha:
-```typescript
-const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-let code = '';
-for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
-const tempPassword = 'TEMP-' + code;
-```
-
-Isso garante:
-- Sempre 8 caracteres apos o prefixo
-- Sem caracteres ambiguos (0/O, 1/I/L)
-- Funciona como senha valida no Supabase Auth
-
-### Detalhes Tecnicos
-
-```text
-Fluxo de criacao de usuario:
-
-Admin clica "Adicionar"
-        |
-        v
-useAdmin.createUser() gera senha TEMP-XXXXXXXX
-        |
-        v
-supabase.functions.invoke('send-user-credentials')
-        |
-        v
-Edge Function:
-  1. import Resend  <-- FALHA se npm: nao resolve
-  2. createUser no Auth
-  3. Insert profile  <-- FALHA sem campo email
-  4. Insert role
-  5. Insert subscription
-  6. Envia email com senha
-        |
-        v
-Usuario recebe email e faz login
-```
-
-A correcao do import e do insert do profile resolve os dois pontos de falha na Edge Function. A melhoria na geracao de senha garante que as credenciais sempre funcionem.
+**Edge Function changes:** Remove ~60 lines of dead trigger-repair code, making the function cleaner and focused on its core job: create user, insert profile/role/subscription, send email.
 
