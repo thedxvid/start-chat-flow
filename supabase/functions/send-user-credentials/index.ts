@@ -39,7 +39,8 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    const siteUrl = Deno.env.get('SITE_URL') || 'https://sistemastart.com';
+    const rawSiteUrl = Deno.env.get('SITE_URL') || 'https://sistemastart.com';
+    const siteUrl = rawSiteUrl.replace(/\/auth\/?$/, '').replace(/\/$/, '');
 
     if (!supabaseUrl || !supabaseServiceKey || !resendApiKey) {
       console.error("❌ Variáveis de ambiente faltando");
@@ -55,7 +56,7 @@ serve(async (req) => {
 
     const isReset = mode === 'reset';
     let userId: string;
-    let accessCode = 'START-' + Math.random().toString(36).substr(2, 8).toUpperCase();
+    let accessCode = 'ADMIN-CREATED';
 
     if (isReset) {
       // ── MODO RESET ──
