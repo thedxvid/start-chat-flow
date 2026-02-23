@@ -418,8 +418,9 @@ export function Suporte() {
             content: m.content,
             sender: m.sender,
             timestamp: m.timestamp,
+            image: m.image,
         }));
-        history.push({ id: userMsg.id, content: userMsg.content, sender: 'user', timestamp: userMsg.timestamp });
+        history.push({ id: userMsg.id, content: userMsg.content, sender: 'user', timestamp: userMsg.timestamp, image: userMsg.image });
 
         const aiResponse = await sendMessage(history, 'suporte');
         if (aiResponse) {
