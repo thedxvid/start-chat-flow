@@ -1,49 +1,51 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.2";
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const headers = { ...corsHeaders, 'Content-Type': 'application/json' };
+
   try {
-    const { email, fullName, tempPassword, role, planType, mode } = await req.json();
-    console.log("🚀 v5 Processando:", email, "modo:", mode || 'create');
+    const body = await req.json();
+    const email: string = body.email;
+    const fullName: string = body.fullName;
+    const tempPassword: string = body.tempPassword;
+    const role: string = body.role || 'user';
+    const planType: string = body.planType || 'premium';
+    const mode: string = body.mode || 'create';
+
+    console.log("🚀 v6 |", email, "| modo:", mode);
 
     if (!email || !fullName || !tempPassword) {
-      return new Response(
-        JSON.stringify({ error: 'Email, nome completo e senha são obrigatórios' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Campos obrigatórios faltando' }), { status: 400, headers });
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const resendApiKey = Deno.env.get('RESEND_API_KEY')!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    const resendApiKey = Deno.env.get('RESEND_API_KEY') || '';
 
     if (!supabaseUrl || !serviceKey || !resendApiKey) {
-      return new Response(
-        JSON.stringify({ error: 'Configuração do servidor incompleta' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Config incompleta' }), { status: 500, headers });
     }
 
-    const loginUrl = 'https://sistemastart.com/auth';
-    let userId: string | null = null;
-    let userCreated = false;
+    const authHeaders = {
+      'Authorization': `Bearer ${serviceKey}`,
+      'apikey': serviceKey,
+      'Content-Type': 'application/json',
+    };
 
-    // ── Step 1: Try to create user via GoTrue Admin HTTP API ──
+    let userId: string | null = null;
+    let isNewUser = false;
+
+    // ── 1. Tentar criar usuário ──
     const createRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${serviceKey}`,
-        'apikey': serviceKey,
-        'Content-Type': 'application/json',
-      },
+      headers: authHeaders,
       body: JSON.stringify({
         email,
         password: tempPassword,
@@ -51,212 +53,142 @@ Deno.serve(async (req) => {
         user_metadata: { full_name: fullName },
       }),
     });
+    const createText = await createRes.text();
+    let createData: Record<string, unknown> = {};
+    try { createData = JSON.parse(createText); } catch (_e) { /* ignore */ }
 
-    const createData = await createRes.json();
-
-    if (createRes.ok && createData?.id) {
-      userId = createData.id;
-      userCreated = true;
-      console.log("✅ Criado:", userId);
+    if (createRes.ok && createData.id) {
+      userId = createData.id as string;
+      isNewUser = true;
+      console.log("✅ Novo usuário:", userId);
     } else {
-      // User already exists — find them and update password
-      console.log("⚠️ Criar falhou:", createRes.status, JSON.stringify(createData).substring(0, 120));
+      console.log("ℹ️ Já existe, buscando...", createRes.status);
 
-      // Method 1: generate_link to get user id
-      try {
-        const linkRes = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${serviceKey}`,
-            'apikey': serviceKey,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ type: 'magiclink', email }),
-        });
-        if (linkRes.ok) {
-          const linkData = await linkRes.json();
-          userId = linkData?.id || linkData?.user?.id || null;
-          if (userId) console.log("✅ Found via generate_link:", userId);
-        } else {
-          console.log("⚠️ generate_link:", linkRes.status);
-        }
-      } catch (e) {
-        console.log("⚠️ generate_link err:", e);
+      // ── 2. Buscar userId via generate_link ──
+      const linkRes = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({ type: 'magiclink', email }),
+      });
+      const linkText = await linkRes.text();
+      let linkData: Record<string, unknown> = {};
+      try { linkData = JSON.parse(linkText); } catch (_e) { /* ignore */ }
+
+      if (linkRes.ok) {
+        userId = (linkData.id || (linkData.user as Record<string, unknown>)?.id || null) as string | null;
+        if (userId) console.log("✅ Encontrado via link:", userId);
       }
 
-      // Method 2: paginated search
+      // ── 3. Fallback: busca paginada ──
       if (!userId) {
-        try {
-          for (let page = 1; page <= 10; page++) {
-            const listRes = await fetch(
-              `${supabaseUrl}/auth/v1/admin/users?page=${page}&per_page=500`,
-              {
-                headers: {
-                  'Authorization': `Bearer ${serviceKey}`,
-                  'apikey': serviceKey,
-                },
-              }
-            );
-            if (!listRes.ok) break;
-            const listData = await listRes.json();
-            const users = listData?.users || [];
-            if (!Array.isArray(users) || users.length === 0) break;
-            const found = users.find((u: { email?: string }) =>
-              u.email?.toLowerCase() === email.toLowerCase()
-            );
-            if (found) {
-              userId = found.id;
-              console.log("✅ Found via search:", userId);
-              break;
-            }
-            if (users.length < 500) break;
-          }
-        } catch (e) {
-          console.log("⚠️ search err:", e);
+        for (let p = 1; p <= 10; p++) {
+          const lRes = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=${p}&per_page=500`, {
+            headers: { 'Authorization': `Bearer ${serviceKey}`, 'apikey': serviceKey },
+          });
+          const lText = await lRes.text();
+          if (!lRes.ok) break;
+          let lData: { users?: Array<{ id: string; email?: string }> } = { users: [] };
+          try { lData = JSON.parse(lText); } catch (_e) { /* ignore */ }
+          const users = lData.users || [];
+          if (users.length === 0) break;
+          const match = users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+          if (match) { userId = match.id; console.log("✅ Encontrado via busca:", userId); break; }
+          if (users.length < 500) break;
         }
       }
 
-      // Update password for existing user
+      // ── 4. Atualizar senha ──
       if (userId) {
-        try {
-          const updRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${serviceKey}`,
-              'apikey': serviceKey,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ password: tempPassword, email_confirm: true }),
-          });
-          console.log("✅ Senha atualizada:", updRes.status);
-        } catch (e) {
-          console.log("⚠️ update err:", e);
-        }
+        const upRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
+          method: 'PUT',
+          headers: authHeaders,
+          body: JSON.stringify({ password: tempPassword, email_confirm: true }),
+        });
+        const upText = await upRes.text();
+        console.log("✅ Senha atualizada:", upRes.status, upText.substring(0, 80));
       } else {
-        console.log("⚠️ userId não encontrado, enviando email mesmo assim");
+        console.log("⚠️ userId não encontrado, email será enviado mesmo assim");
       }
     }
 
-    // ── Step 2: Profile/role/subscription for NEW users only ──
-    if (userCreated && userId) {
-      const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
-        auth: { autoRefreshToken: false, persistSession: false }
+    // ── 5. Criar registros auxiliares para novos ──
+    if (isNewUser && userId) {
+      // Profile
+      const pRes = await fetch(`${supabaseUrl}/rest/v1/profiles`, {
+        method: 'POST',
+        headers: { ...authHeaders, 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify({ user_id: userId, full_name: fullName, email }),
       });
+      await pRes.text();
 
-      try {
-        await supabaseAdmin.from('profiles').upsert({
-          user_id: userId, full_name: fullName, email,
-          created_at: new Date().toISOString(), updated_at: new Date().toISOString()
-        });
-      } catch (e) { console.log("⚠️ profile:", e); }
+      // Role
+      const rRes = await fetch(`${supabaseUrl}/rest/v1/user_roles`, {
+        method: 'POST',
+        headers: { ...authHeaders, 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify({ user_id: userId, role }),
+      });
+      await rRes.text();
 
-      try {
-        await supabaseAdmin.from('user_roles').upsert({
-          user_id: userId, role: role || 'user',
-          created_at: new Date().toISOString(), updated_at: new Date().toISOString()
-        });
-      } catch (e) { console.log("⚠️ role:", e); }
-
-      try {
-        await supabaseAdmin.from('subscriptions').insert({
+      // Subscription
+      const sRes = await fetch(`${supabaseUrl}/rest/v1/subscriptions`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({
           user_id: userId, customer_email: email, customer_name: fullName,
-          status: 'active', plan_type: planType || 'premium',
+          status: 'active', plan_type: planType,
           access_code: 'ADMIN-CREATED',
           kiwify_order_id: 'ADMIN-' + Math.random().toString(36).substr(2, 12).toUpperCase(),
-          expires_at: planType === 'free' ? null : new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
-          created_at: new Date().toISOString(), updated_at: new Date().toISOString()
-        });
-      } catch (e) { console.log("⚠️ subscription:", e); }
+          expires_at: planType === 'free' ? null : new Date(Date.now() + 180 * 86400000).toISOString(),
+        }),
+      });
+      await sRes.text();
     }
 
-    // ── Step 3: ALWAYS send email via Resend HTTP API ──
-    const isReset = mode === 'reset' || !userCreated;
+    // ── 6. Enviar email via Resend API (fetch puro) ──
+    const isReset = mode === 'reset' || !isNewUser;
+    const loginUrl = 'https://sistemastart.com/auth';
 
-    const emailHtml = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
-<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;color:#333333;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f4;padding:30px 0;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
-        <tr><td style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:30px;text-align:center;border-radius:10px 10px 0 0;">
-          <h1 style="margin:0;font-size:26px;color:#ffffff;">${isReset ? '🔑 Novas Credenciais' : '🎉 Bem-vindo ao Sistema Start!'}</h1>
-          <p style="margin:10px 0 0 0;font-size:15px;color:#e8e8ff;">${isReset ? 'Suas credenciais foram atualizadas' : 'Sua conta foi criada com sucesso'}</p>
-        </td></tr>
-        <tr><td style="background-color:#ffffff;padding:30px;">
-          <h2 style="margin:0 0 16px 0;color:#333333;font-size:20px;">👋 Olá, ${fullName}!</h2>
-          <p style="color:#555555;line-height:1.7;margin-bottom:20px;font-size:15px;">
-            ${isReset ? 'Suas credenciais de acesso foram atualizadas. Use os dados abaixo para entrar:' : 'Sua conta no Sistema Start foi criada com sucesso! Aqui estão suas credenciais de acesso:'}
-          </p>
-          <table width="100%" cellpadding="0" cellspacing="0"><tr>
-            <td style="background-color:#f8f9fa;border:2px solid #e9ecef;border-radius:8px;padding:20px;">
-              <h3 style="margin:0 0 16px 0;color:#333333;font-size:16px;">🔐 Suas Credenciais:</h3>
-              <p style="margin:0 0 10px 0;color:#444444;font-size:14px;"><strong>📧 Email:</strong> ${email}</p>
-              <p style="margin:0 0 10px 0;color:#444444;font-size:14px;"><strong>🔑 Senha:</strong> <code style="background-color:#f1f3f4;padding:3px 8px;border-radius:4px;font-family:monospace;font-size:14px;">${tempPassword}</code></p>
-              <p style="margin:0;color:#444444;font-size:14px;"><strong>🎯 Plano:</strong> ${planType || 'Premium'}</p>
-            </td>
-          </tr></table>
-          <div style="text-align:center;margin:30px 0;">
-            <a href="${loginUrl}" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:15px;display:inline-block;">🚀 Acessar Sistema Start</a>
-          </div>
-          <table width="100%" cellpadding="0" cellspacing="0"><tr>
-            <td style="background-color:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:15px 18px;">
-              <h4 style="margin:0 0 10px 0;color:#7a5c00;font-size:14px;">⚠️ Importante:</h4>
-              <ul style="margin:0;padding-left:18px;color:#7a5c00;font-size:13px;line-height:1.8;">
-                <li>Use a aba <strong>"Entrar"</strong> para fazer login com email e senha acima.</li>
-                <li>NÃO use a aba "Cadastrar" — sua conta já está criada.</li>
-                <li>Recomendamos alterar a senha no primeiro acesso.</li>
-              </ul>
-            </td>
-          </tr></table>
-        </td></tr>
-        <tr><td style="background-color:#333333;color:#cccccc;padding:20px;text-align:center;border-radius:0 0 10px 10px;">
-          <p style="margin:0;font-size:13px;color:#cccccc;">📧 Este email foi enviado automaticamente pelo Sistema Start</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
-
-    // Send email via Resend HTTP API directly (no npm import needed)
     const emailRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${resendApiKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Authorization': `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: 'Sistema Start <noreply@sistemastart.com>',
         to: [email],
-        subject: isReset
-          ? '🔑 Suas Novas Credenciais - Sistema Start'
-          : '🎉 Bem-vindo ao Sistema Start - Suas Credenciais de Acesso',
-        html: emailHtml,
+        subject: isReset ? '🔑 Suas Novas Credenciais - Sistema Start' : '🎉 Bem-vindo ao Sistema Start',
+        html: `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/></head><body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;color:#333;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:30px 0;"><tr><td align="center">
+<table width="600" style="max-width:600px;width:100%;">
+<tr><td style="background:linear-gradient(135deg,#667eea,#764ba2);padding:30px;text-align:center;border-radius:10px 10px 0 0;">
+<h1 style="margin:0;font-size:26px;color:#fff;">${isReset ? '🔑 Novas Credenciais' : '🎉 Bem-vindo!'}</h1></td></tr>
+<tr><td style="background:#fff;padding:30px;">
+<h2 style="color:#333;">👋 Olá, ${fullName}!</h2>
+<p style="color:#555;line-height:1.7;">${isReset ? 'Suas credenciais foram atualizadas:' : 'Sua conta foi criada! Credenciais:'}</p>
+<div style="background:#f8f9fa;border:2px solid #e9ecef;border-radius:8px;padding:20px;margin:16px 0;">
+<p style="margin:0 0 8px;"><strong>📧 Email:</strong> ${email}</p>
+<p style="margin:0 0 8px;"><strong>🔑 Senha:</strong> <code style="background:#f1f3f4;padding:3px 8px;border-radius:4px;">${tempPassword}</code></p>
+<p style="margin:0;"><strong>🎯 Plano:</strong> ${planType}</p></div>
+<div style="text-align:center;margin:24px 0;">
+<a href="${loginUrl}" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block;">🚀 Acessar</a></div>
+<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:15px;">
+<p style="margin:0;color:#7a5c00;font-size:13px;">⚠️ Use a aba <strong>"Entrar"</strong>. NÃO use "Cadastrar".</p></div>
+</td></tr></table></td></tr></table></body></html>`,
       }),
     });
-
-    const emailData = await emailRes.json();
+    const emailText = await emailRes.text();
+    let emailData: Record<string, unknown> = {};
+    try { emailData = JSON.parse(emailText); } catch (_e) { /* ignore */ }
 
     if (!emailRes.ok) {
-      console.error("⚠️ Resend erro:", JSON.stringify(emailData));
-      return new Response(
-        JSON.stringify({ success: true, userId, warning: 'Usuário processado mas email falhou' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error("⚠️ Resend falhou:", emailRes.status, emailText.substring(0, 100));
+      return new Response(JSON.stringify({ success: true, userId, warning: 'Email falhou' }), { status: 200, headers });
     }
 
-    console.log("✅ v5 Concluído:", email, userId);
-    return new Response(
-      JSON.stringify({ success: true, userId, emailId: emailData?.id }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.log("✅ v6 OK:", email, userId, emailData.id);
+    return new Response(JSON.stringify({ success: true, userId, emailId: emailData.id }), { status: 200, headers });
 
-  } catch (error) {
-    console.error("💥 v5 Erro fatal:", error);
-    return new Response(
-      JSON.stringify({ error: 'Erro interno', details: String(error) }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("💥 v6 erro:", msg);
+    return new Response(JSON.stringify({ error: 'Erro interno', details: msg }), { status: 500, headers });
   }
 });
