@@ -103,16 +103,26 @@ export function useAdmin() {
     try {
       console.log('🚀 Iniciando criação de usuário:', userData);
 
-      // Gerar senha temporária
-      const tempPassword = 'TEMP-' + Math.random().toString(36).slice(-8).toUpperCase();
+      // Gerar senha temporária robusta (evitando caracteres ambíguos)
+      const generatePassword = () => {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        let result = "START-";
+        for (let i = 0; i < 8; i++) {
+          result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+      };
 
-      console.log('📤 Chamando Edge Function send-user-credentials...');
+      const tempPassword = generatePassword();
+      const normalizedEmail = userData.email.trim().toLowerCase();
+
+      console.log('📤 Chamando Edge Function send-user-credentials para:', normalizedEmail);
 
       // Criar usuário diretamente via Edge Function
       const { data: emailData, error: emailError } = await supabase.functions.invoke('send-user-credentials', {
         body: {
-          email: userData.email,
-          fullName: userData.fullName,
+          email: normalizedEmail,
+          fullName: userData.fullName.trim(),
           tempPassword: tempPassword,
           role: userData.role || 'user',
           planType: userData.planType || 'free'

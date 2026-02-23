@@ -47,90 +47,47 @@ async function sendAccessCodeEmail(email: string, name: string, accessCode: stri
         from: 'Sistema Start <noreply@sistemastart.com>',
         to: [email],
         subject: '🎉 Seu código de acesso ao Sistema Start',
+        text: `Olá ${name}!\n\nParabéns! Seu pagamento foi confirmado com sucesso.\n\nSeu código de acesso: ${accessCode}\n\nComo acessar o sistema:\n1. Acesse: https://sistemastart.com/auth\n2. Clique em "Cadastrar"\n3. Digite seu código: ${accessCode}\n4. Preencha seus dados e comece a usar!\n\nBem-vindo ao time!`,
         html: `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="color-scheme" content="light" />
-  <meta name="supported-color-schemes" content="light" />
+  <title>Seu Código de Acesso - Sistema Start</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;color:#333333;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f4;padding:30px 0;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,sans-serif;color:#333333;">
+  <div style="max-width:600px;margin:20px auto;background-color:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+    <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:30px;text-align:center;color:#ffffff;">
+      <h1 style="margin:0;font-size:24px;">🚀 Bem-vindo ao Sistema Start!</h1>
+    </div>
+    <div style="padding:30px;">
+      <h2 style="margin:0 0 20px 0;font-size:18px;">Olá, ${name}!</h2>
+      <p style="margin-bottom:20px;line-height:1.6;"><strong>Parabéns!</strong> Seu pagamento foi confirmado. Agora você tem acesso completo ao sistema.</p>
+      
+      <div style="background-color:#f0f0ff;border:2px solid #667eea;border-radius:10px;padding:25px;text-align:center;margin-bottom:25px;">
+        <p style="margin:0 0 10px 0;color:#667eea;font-weight:bold;">🔑 Seu Código de Acesso:</p>
+        <div style="background-color:#667eea;color:#ffffff;padding:15px;border-radius:8px;font-family:monospace;font-size:24px;font-weight:bold;letter-spacing:2px;display:inline-block;">${accessCode}</div>
+        <p style="color:#666;font-size:12px;margin-top:10px;">⚠️ Guarde este código. Você precisará dele para criar sua conta.</p>
+      </div>
 
-          <!-- Header -->
-          <tr>
-            <td style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:30px;text-align:center;border-radius:10px 10px 0 0;">
-              <h1 style="margin:0;font-size:26px;color:#ffffff;font-family:Arial,sans-serif;">🚀 Bem-vindo ao Sistema Start!</h1>
-              <p style="margin:10px 0 0 0;font-size:15px;color:#e8e8ff;font-family:Arial,sans-serif;">Mentoria Expert em Marketing Digital</p>
-            </td>
-          </tr>
+      <div style="margin-bottom:25px;">
+        <h3 style="font-size:16px;margin-bottom:10px;">📋 Como acessar:</h3>
+        <ol style="line-height:1.8;padding-left:20px;">
+          <li>Acesse: <a href="https://sistemastart.com/auth" style="color:#667eea;">sistemastart.com/auth</a></li>
+          <li>Clique na aba <strong>"Cadastrar"</strong></li>
+          <li>Insira seu código: <strong>${accessCode}</strong></li>
+          <li>Finalize seu cadastro!</li>
+        </ol>
+      </div>
 
-          <!-- Body -->
-          <tr>
-            <td style="background-color:#ffffff;padding:30px;">
-              <h2 style="margin:0 0 16px 0;color:#333333;font-family:Arial,sans-serif;font-size:20px;">Olá, ${name}!</h2>
-              <p style="color:#555555;line-height:1.7;margin-bottom:25px;font-family:Arial,sans-serif;font-size:15px;">
-                🎉 <strong style="color:#333333;">Parabéns!</strong> Seu pagamento foi confirmado com sucesso!
-                Agora você tem acesso completo ao Sistema Start.
-              </p>
-
-              <!-- Access Code Box -->
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="background-color:#f0f0ff;border:2px solid #667eea;border-radius:10px;padding:25px;text-align:center;">
-                    <p style="margin:0 0 12px 0;color:#667eea;font-weight:bold;font-family:Arial,sans-serif;font-size:16px;">🔑 Seu Código de Acesso:</p>
-                    <div style="background-color:#667eea;color:#ffffff;padding:14px 24px;border-radius:8px;font-family:monospace,Courier New,monospace;font-size:24px;font-weight:bold;letter-spacing:3px;display:inline-block;">${accessCode}</div>
-                    <p style="color:#666666;font-size:13px;margin:14px 0 0 0;font-family:Arial,sans-serif;">⚠️ Guarde este código com segurança. Você precisará dele para criar sua conta.</p>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Steps -->
-              <div style="margin:25px 0;">
-                <h4 style="color:#333333;margin:0 0 10px 0;font-family:Arial,sans-serif;font-size:15px;">📋 Como acessar o sistema:</h4>
-                <ol style="color:#555555;line-height:2;padding-left:20px;margin:0;font-family:Arial,sans-serif;font-size:14px;">
-                  <li>Acesse: <a href="https://sistemastart.com/auth" style="color:#667eea;text-decoration:underline;">sistemastart.com/auth</a></li>
-                  <li>Clique em <strong style="color:#333333;">"Cadastrar"</strong></li>
-                  <li>Digite seu código de acesso: <strong style="color:#333333;">${accessCode}</strong></li>
-                  <li>Preencha seus dados e comece a usar!</li>
-                </ol>
-              </div>
-
-              <!-- Tip box -->
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="background-color:#e8f4fd;border-left:4px solid #2196F3;padding:14px 16px;border-radius:0 6px 6px 0;">
-                    <p style="margin:0 0 6px 0;color:#1565C0;font-weight:bold;font-family:Arial,sans-serif;font-size:14px;">💡 Dica importante:</p>
-                    <p style="margin:0;color:#1565C0;line-height:1.6;font-family:Arial,sans-serif;font-size:13px;">
-                      Após criar sua conta, você terá acesso ilimitado à nossa mentora expert em marketing digital.
-                    </p>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- CTA Button -->
-              <div style="text-align:center;margin-top:28px;">
-                <a href="https://sistemastart.com/auth" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:bold;font-family:Arial,sans-serif;font-size:15px;display:inline-block;">🚀 Acessar Sistema Agora</a>
-              </div>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="background-color:#333333;color:#cccccc;padding:20px;text-align:center;border-radius:0 0 10px 10px;">
-              <p style="margin:0;font-family:Arial,sans-serif;font-size:13px;color:#cccccc;">Sistema Start - Mentoria Expert em Marketing Digital</p>
-              <p style="margin:6px 0 0 0;font-size:12px;color:#aaaaaa;font-family:Arial,sans-serif;">Transforme seu marketing digital com IA</p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
+      <div style="text-align:center;margin-top:30px;">
+        <a href="https://sistemastart.com/auth" style="background:#667eea;color:#ffffff;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block;">🚀 Acessar Sistema Agora</a>
+      </div>
+    </div>
+    <div style="background-color:#333;color:#999;padding:15px;text-align:center;font-size:12px;">
+      Sistema Start - Mentoria Expert em Marketing Digital
+    </div>
+  </div>
 </body>
 </html>`,
       }),

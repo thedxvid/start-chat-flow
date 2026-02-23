@@ -68,7 +68,7 @@ export default function Auth() {
     setLoading(true);
     setError('');
 
-    const { error } = await signIn(email, password);
+    const { error } = await signIn(email.trim().toLowerCase(), password.trim());
 
     if (error) {
       setError(error.message);
@@ -169,7 +169,7 @@ export default function Auth() {
       return;
     }
 
-    const { error } = await signUp(email, password, fullName);
+    const { error } = await signUp(email.trim().toLowerCase(), password.trim(), fullName.trim());
 
     if (error) {
       setError(error.message);

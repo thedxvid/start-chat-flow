@@ -28,7 +28,8 @@ serve(async (req) => {
     console.log("🚀 Iniciando criação de usuário...");
 
     // Parse request
-    const { email, fullName, tempPassword, role, planType }: SendCredentialsRequest = await req.json();
+    const { email: rawEmail, fullName, tempPassword, role, planType }: SendCredentialsRequest = await req.json();
+    const email = rawEmail.trim().toLowerCase();
 
     // Validate required fields
     if (!email || !fullName || !tempPassword) {
@@ -42,9 +43,9 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    const siteUrl = Deno.env.get('SITE_URL');
+    const siteUrl = Deno.env.get('SITE_URL') || 'https://sistemastart.com';
 
-    if (!supabaseUrl || !supabaseServiceKey || !resendApiKey || !siteUrl) {
+    if (!supabaseUrl || !supabaseServiceKey || !resendApiKey) {
       console.error("❌ Variáveis de ambiente faltando");
       return new Response(
         JSON.stringify({ error: 'Configuração do servidor incompleta' }),
@@ -232,90 +233,42 @@ serve(async (req) => {
       from: 'Sistema Start <noreply@sistemastart.com>',
       to: [email],
       subject: '🎉 Bem-vindo ao Sistema Start - Suas Credenciais de Acesso',
+      text: `Olá ${fullName}!\n\nSua conta no Sistema Start foi criada com sucesso.\n\nSuas credenciais:\nEmail: ${email}\nSenha Temporária: ${tempPassword}\nPlano: ${planType || 'Premium'}\nCódigo de Acesso: ${accessCode}\n\nAcesse agora em: ${siteUrl}\n\nRecomendamos alterar sua senha no primeiro acesso.`,
       html: `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="color-scheme" content="light" />
-  <meta name="supported-color-schemes" content="light" />
+  <title>Bem-vindo ao Sistema Start</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;color:#333333;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f4;padding:30px 0;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,sans-serif;color:#333333;">
+  <div style="max-width:600px;margin:20px auto;background-color:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+    <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:30px;text-align:center;color:#ffffff;">
+      <h1 style="margin:0;font-size:24px;">🎉 Bem-vindo ao Sistema Start!</h1>
+    </div>
+    <div style="padding:30px;">
+      <h2 style="margin:0 0 20px 0;font-size:18px;">👋 Olá, ${fullName}!</h2>
+      <p style="margin-bottom:20px;line-height:1.6;">Sua conta foi criada com sucesso. Use as credenciais abaixo para acessar o sistema:</p>
+      
+      <div style="background-color:#f8f9fa;border:1px solid #e9ecef;border-radius:8px;padding:20px;margin-bottom:25px;">
+        <p style="margin:0 0 10px 0;"><strong>📧 Email:</strong> ${email}</p>
+        <p style="margin:0 0 10px 0;"><strong>🔑 Senha Temporária:</strong> <code style="background:#eee;padding:2px 5px;border-radius:3px;">${tempPassword}</code></p>
+        <p style="margin:0 0 10px 0;"><strong>🎯 Plano:</strong> ${planType || 'Premium'}</p>
+        <p style="margin:0;"><strong>🎫 Código de Acesso:</strong> <code style="background:#eee;padding:2px 5px;border-radius:3px;">${accessCode}</code></p>
+      </div>
 
-          <!-- Header -->
-          <tr>
-            <td style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:30px;text-align:center;border-radius:10px 10px 0 0;">
-              <h1 style="margin:0;font-size:26px;color:#ffffff;font-family:Arial,sans-serif;">🎉 Bem-vindo ao Sistema Start!</h1>
-              <p style="margin:10px 0 0 0;font-size:15px;color:#e8e8ff;font-family:Arial,sans-serif;">Sua conta foi criada com sucesso</p>
-            </td>
-          </tr>
+      <div style="text-align:center;margin:30px 0;">
+        <a href="${siteUrl}" style="background:#667eea;color:#ffffff;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block;">🚀 Acessar Sistema agora</a>
+      </div>
 
-          <!-- Body -->
-          <tr>
-            <td style="background-color:#ffffff;padding:30px;">
-              <h2 style="margin:0 0 16px 0;color:#333333;font-family:Arial,sans-serif;font-size:20px;">👋 Olá, ${fullName}!</h2>
-              <p style="color:#555555;line-height:1.7;margin-bottom:20px;font-family:Arial,sans-serif;font-size:15px;">
-                Sua conta no Sistema Start foi criada com sucesso! Aqui estão suas credenciais de acesso:
-              </p>
-
-              <!-- Credentials Box -->
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="background-color:#f8f9fa;border:2px solid #e9ecef;border-radius:8px;padding:20px;">
-                    <h3 style="margin:0 0 16px 0;color:#333333;font-family:Arial,sans-serif;font-size:16px;">🔐 Suas Credenciais:</h3>
-                    <p style="margin:0 0 10px 0;color:#444444;font-family:Arial,sans-serif;font-size:14px;">
-                      <strong style="color:#333333;">📧 Email:</strong> <span style="color:#555555;">${email}</span>
-                    </p>
-                    <p style="margin:0 0 10px 0;color:#444444;font-family:Arial,sans-serif;font-size:14px;">
-                      <strong style="color:#333333;">🔑 Senha Temporária:</strong> <code style="background-color:#f1f3f4;color:#333333;padding:3px 8px;border-radius:4px;font-family:monospace,Courier New,monospace;font-size:14px;">${tempPassword}</code>
-                    </p>
-                    <p style="margin:0 0 10px 0;color:#444444;font-family:Arial,sans-serif;font-size:14px;">
-                      <strong style="color:#333333;">🎯 Plano:</strong> <span style="color:#555555;">${planType || 'Premium'}</span>
-                    </p>
-                    <p style="margin:0;color:#444444;font-family:Arial,sans-serif;font-size:14px;">
-                      <strong style="color:#333333;">🎫 Código de Acesso:</strong> <code style="background-color:#f1f3f4;color:#333333;padding:3px 8px;border-radius:4px;font-family:monospace,Courier New,monospace;font-size:14px;">${accessCode}</code>
-                    </p>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- CTA Button -->
-              <div style="text-align:center;margin:30px 0;">
-                <a href="${siteUrl}" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:bold;font-family:Arial,sans-serif;font-size:15px;display:inline-block;">🚀 Acessar Sistema Start</a>
-              </div>
-
-              <!-- Warning box -->
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="background-color:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:15px 18px;">
-                    <h4 style="margin:0 0 10px 0;color:#7a5c00;font-family:Arial,sans-serif;font-size:14px;">⚠️ Importante:</h4>
-                    <ul style="margin:0;padding-left:18px;color:#7a5c00;font-family:Arial,sans-serif;font-size:13px;line-height:1.8;">
-                      <li>Esta é uma senha temporária. Recomendamos alterá-la no primeiro acesso.</li>
-                      <li>Guarde bem suas credenciais em local seguro.</li>
-                      <li>Se tiver dúvidas, entre em contato com nosso suporte.</li>
-                    </ul>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="background-color:#333333;color:#cccccc;padding:20px;text-align:center;border-radius:0 0 10px 10px;">
-              <p style="margin:0;font-family:Arial,sans-serif;font-size:13px;color:#cccccc;">📧 Este email foi enviado automaticamente pelo Sistema Start</p>
-              <p style="margin:6px 0 0 0;font-size:12px;color:#aaaaaa;font-family:Arial,sans-serif;">Se você não esperava este email, pode ignorá-lo com segurança.</p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
+      <p style="font-size:13px;color:#777;margin-top:20px;border-top:1px solid #eee;padding-top:20px;">
+        ⚠️ <strong>Importante:</strong> Recomendamos alterar sua senha no primeiro acesso para sua segurança.
+      </p>
+    </div>
+    <div style="background-color:#333;color:#999;padding:15px;text-align:center;font-size:12px;">
+      Este é um email automático do Sistema Start. Por favor, não responda.
+    </div>
+  </div>
 </body>
 </html>`,
     });
