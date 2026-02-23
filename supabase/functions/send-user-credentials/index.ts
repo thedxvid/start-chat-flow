@@ -6,13 +6,15 @@ import postgres from "https://deno.land/x/postgresjs@v3.4.4/mod.js";
 
 // Fix auth trigger to include email field in profiles (runs once per cold start)
 let triggerFixed = false;
-async function ensureAuthTrigger() {
-  if (triggerFixed) return;
+async function ensureAuthTrigger(): Promise<{ ok: boolean; reason?: string }> {
+  if (triggerFixed) return { ok: true };
+
   const dbUrl = Deno.env.get('SUPABASE_DB_URL');
   if (!dbUrl) {
-    console.log("⚠️ SUPABASE_DB_URL não disponível, pulando fix do trigger");
-    return;
+    console.error("❌ SUPABASE_DB_URL não configurado - não foi possível reparar trigger");
+    return { ok: false, reason: 'SUPABASE_DB_URL ausente' };
   }
+
   const sql = postgres(dbUrl, { max: 1 });
   try {
     await sql`
@@ -53,10 +55,13 @@ async function ensureAuthTrigger() {
         AFTER INSERT ON auth.users
         FOR EACH ROW EXECUTE FUNCTION public.handle_new_user()
     `;
+
     triggerFixed = true;
     console.log("✅ Auth trigger configurado com sucesso");
+    return { ok: true };
   } catch (e) {
     console.error("⚠️ Erro ao configurar trigger:", e.message);
+    return { ok: false, reason: e.message };
   } finally {
     await sql.end();
   }
@@ -227,7 +232,16 @@ serve(async (req) => {
       }
 
       // Garantir que o trigger auth inclui email no profiles
-      await ensureAuthTrigger();
+      const triggerResult = await ensureAuthTrigger();
+      if (!triggerResult.ok) {
+        return new Response(
+          JSON.stringify({
+            error: `Não foi possível preparar o banco para criação de usuário (${triggerResult.reason}). Configure o secret SUPABASE_DB_URL para permitir auto-correção do trigger.`
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       console.log("✅ Email disponível, criando usuário...");
 
       const { data: authData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
