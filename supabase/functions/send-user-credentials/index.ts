@@ -60,31 +60,42 @@ serve(async (req) => {
     let userId: string;
     let accessCode = 'ADMIN-CREATED';
 
+    // ── Helper: buscar usuário por email com paginação ──
+    const findUserByEmail = async (targetEmail: string) => {
+      let page = 1;
+      const perPage = 1000;
+      while (true) {
+        const { data: usersPage, error: listError } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+        if (listError) {
+          console.error("❌ Erro ao listar usuários página", page, listError);
+          return null;
+        }
+        const found = usersPage.users.find(u => u.email?.toLowerCase() === targetEmail.toLowerCase());
+        if (found) return found;
+        if (usersPage.users.length < perPage) break;
+        page++;
+      }
+      return null;
+    };
+
+    // ── Helper: atualizar senha de um usuário existente ──
+    const resetUserPassword = async (targetUserId: string, password: string) => {
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUser(targetUserId, {
+        password,
+        email_confirm: true
+      });
+      if (updateError) {
+        console.error("❌ Erro ao atualizar senha:", updateError);
+        throw new Error(`Erro ao redefinir senha: ${updateError.message}`);
+      }
+      console.log("✅ Senha atualizada com sucesso");
+    };
+
     if (isReset) {
       // ── MODO RESET ──
       console.log("🔄 Modo RESET - Atualizando senha do usuário:", email);
 
-      // Buscar usuário por email com paginação completa
-      let foundUser = null;
-      let page = 1;
-      const perPage = 1000;
-
-      while (!foundUser) {
-        const { data: usersPage, error: listError } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
-        if (listError) {
-          return new Response(
-            JSON.stringify({ error: 'Erro ao buscar usuários' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        foundUser = usersPage.users.find(u => u.email?.toLowerCase() === email.toLowerCase());
-
-        if (!foundUser && usersPage.users.length < perPage) {
-          break; // No more pages
-        }
-        page++;
-      }
+      const foundUser = await findUserByEmail(email);
 
       if (!foundUser) {
         return new Response(
@@ -94,52 +105,28 @@ serve(async (req) => {
       }
 
       userId = foundUser.id;
-
-      const { error: updateError } = await supabaseAdmin.auth.admin.updateUser(userId, {
-        password: tempPassword,
-        email_confirm: true
-      });
-
-      if (updateError) {
-        console.error("❌ Erro ao atualizar senha:", updateError);
-        return new Response(
-          JSON.stringify({ error: `Erro ao redefinir senha: ${updateError.message}` }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      console.log("✅ Senha atualizada com sucesso para:", email);
+      await resetUserPassword(userId, tempPassword);
 
     } else {
       // ── MODO CREATE ──
       console.log("🔍 Verificando se usuário já existe...");
 
-      const { data: existingUser, error: checkError } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const existingUser = await findUserByEmail(email);
 
-      if (checkError) {
-        console.error("❌ Erro ao verificar usuários existentes:", checkError);
-        return new Response(
-          JSON.stringify({ error: 'Erro ao verificar usuários existentes' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const userExists = existingUser.users.find(user => user.email?.toLowerCase() === email.toLowerCase());
-
-      if (userExists) {
-        console.log("⚠️ Usuário já existe:", email, "ID:", userExists.id);
+      if (existingUser) {
+        console.log("⚠️ Usuário já existe:", email, "ID:", existingUser.id);
 
         const { data: profileData, error: profileError } = await supabaseAdmin
           .from('profiles')
           .select('*')
-          .eq('user_id', userExists.id)
+          .eq('user_id', existingUser.id)
           .single();
 
         if (profileError && profileError.code === 'PGRST116') {
           console.log("🧹 Usuário existe mas com dados incompletos. Limpando...");
           try {
             await supabaseAdmin.rpc('cleanup_incomplete_user', { user_email: email }).catch(() => {});
-            const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userExists.id);
+            const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(existingUser.id);
             if (deleteError) {
               return new Response(
                 JSON.stringify({ error: `Email já está em uso. Erro na limpeza: ${deleteError.message}` }),
@@ -176,63 +163,82 @@ serve(async (req) => {
         user_metadata: { full_name: fullName }
       });
 
+      // ── FALLBACK: se createUser falhar com "already registered", faz reset ──
       if (createUserError) {
-        console.error("❌ Erro ao criar usuário:", createUserError);
-        return new Response(
-          JSON.stringify({ error: `Erro ao criar usuário: ${createUserError.message}` }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        const errMsg = createUserError.message || '';
+        if (errMsg.includes('already') || errMsg.includes('registered') || errMsg.includes('exists')) {
+          console.log("⚠️ createUser falhou com 'already registered', tentando fallback para reset...");
+          const fallbackUser = await findUserByEmail(email);
+          if (fallbackUser) {
+            userId = fallbackUser.id;
+            await resetUserPassword(userId, tempPassword);
+            // Pula a criação de profile/role/subscription pois já existem
+          } else {
+            return new Response(
+              JSON.stringify({ error: `Erro ao criar usuário: ${errMsg}` }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        } else {
+          console.error("❌ Erro ao criar usuário:", createUserError);
+          return new Response(
+            JSON.stringify({ error: `Erro ao criar usuário: ${errMsg}` }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
 
-      if (!authData?.user) {
-        return new Response(
-          JSON.stringify({ error: 'Falha ao criar usuário - resposta vazia' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      if (!userId!) {
+        if (!authData?.user) {
+          return new Response(
+            JSON.stringify({ error: 'Falha ao criar usuário - resposta vazia' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        userId = authData.user.id;
+        console.log("✅ Usuário criado no auth:", userId);
+
+        // Create profile
+        const { error: profileError } = await supabaseAdmin
+          .from('profiles')
+          .upsert({
+            user_id: userId,
+            full_name: fullName,
+            email: email,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+        if (profileError) console.error("⚠️ Erro ao criar profile:", profileError);
+
+        // Create role
+        const { error: roleError } = await supabaseAdmin
+          .from('user_roles')
+          .upsert({
+            user_id: userId,
+            role: role || 'user',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+        if (roleError) console.error("⚠️ Erro ao criar role:", roleError);
+
+        // Create subscription
+        const { error: subscriptionError } = await supabaseAdmin
+          .from('subscriptions')
+          .insert({
+            user_id: userId,
+            customer_email: email,
+            customer_name: fullName,
+            status: 'active',
+            plan_type: planType || 'premium',
+            access_code: accessCode,
+            kiwify_order_id: 'ADMIN-' + Math.random().toString(36).substr(2, 12).toUpperCase(),
+            expires_at: planType === 'free' ? null : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+        if (subscriptionError) console.error("⚠️ Erro ao criar subscription:", subscriptionError);
       }
-
-      userId = authData.user.id;
-      console.log("✅ Usuário criado no auth:", userId);
-
-      // Create profile (upsert para lidar com trigger que pode ter criado)
-      const { error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .upsert({
-          user_id: userId,
-          full_name: fullName,
-          email: email,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-      if (profileError) console.error("⚠️ Erro ao criar profile:", profileError);
-
-      // Create role
-      const { error: roleError } = await supabaseAdmin
-        .from('user_roles')
-        .upsert({
-          user_id: userId,
-          role: role || 'user',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-      if (roleError) console.error("⚠️ Erro ao criar role:", roleError);
-
-      // Create subscription
-      const { error: subscriptionError } = await supabaseAdmin
-        .from('subscriptions')
-        .insert({
-          user_id: userId,
-          customer_email: email,
-          customer_name: fullName,
-          status: 'active',
-          plan_type: planType || 'premium',
-          access_code: accessCode,
-          kiwify_order_id: 'ADMIN-' + Math.random().toString(36).substr(2, 12).toUpperCase(),
-          expires_at: planType === 'free' ? null : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-      if (subscriptionError) console.error("⚠️ Erro ao criar subscription:", subscriptionError);
     }
 
     // ── Enviar email com credenciais ──
