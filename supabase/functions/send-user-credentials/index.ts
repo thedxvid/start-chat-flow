@@ -40,7 +40,9 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     const rawSiteUrl = Deno.env.get('SITE_URL') || 'https://sistemastart.com';
-    const siteUrl = rawSiteUrl.replace(/\/auth\/?$/, '').replace(/\/$/, '');
+    // Remove QUALQUER ocorrência de /auth no final, mesmo múltiplas, e trailing slashes
+    const siteUrl = rawSiteUrl.replace(/(?:\/auth)+\/?$/i, '').replace(/\/+$/, '');
+    console.log("🌐 SITE_URL raw:", rawSiteUrl, "-> limpo:", siteUrl, "-> link final:", siteUrl + "/auth");
 
     if (!supabaseUrl || !supabaseServiceKey || !resendApiKey) {
       console.error("❌ Variáveis de ambiente faltando");
