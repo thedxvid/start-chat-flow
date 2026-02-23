@@ -62,23 +62,36 @@ serve(async (req) => {
       // ── MODO RESET ──
       console.log("🔄 Modo RESET - Atualizando senha do usuário:", email);
 
-      const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-      if (listError) {
-        return new Response(
-          JSON.stringify({ error: 'Erro ao buscar usuários' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      // Buscar usuário por email com paginação completa
+      let foundUser = null;
+      let page = 1;
+      const perPage = 1000;
+
+      while (!foundUser) {
+        const { data: usersPage, error: listError } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+        if (listError) {
+          return new Response(
+            JSON.stringify({ error: 'Erro ao buscar usuários' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        foundUser = usersPage.users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+
+        if (!foundUser && usersPage.users.length < perPage) {
+          break; // No more pages
+        }
+        page++;
       }
 
-      const existingUser = existingUsers.users.find(u => u.email?.toLowerCase() === email.toLowerCase());
-      if (!existingUser) {
+      if (!foundUser) {
         return new Response(
           JSON.stringify({ error: `Usuário ${email} não encontrado no sistema` }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      userId = existingUser.id;
+      userId = foundUser.id;
 
       const { error: updateError } = await supabaseAdmin.auth.admin.updateUser(userId, {
         password: tempPassword,
@@ -99,7 +112,7 @@ serve(async (req) => {
       // ── MODO CREATE ──
       console.log("🔍 Verificando se usuário já existe...");
 
-      const { data: existingUser, error: checkError } = await supabaseAdmin.auth.admin.listUsers();
+      const { data: existingUser, error: checkError } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
 
       if (checkError) {
         console.error("❌ Erro ao verificar usuários existentes:", checkError);
