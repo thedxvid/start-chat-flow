@@ -3,30 +3,6 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.52.0";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 
-// Repair broken auth triggers using direct SQL via supabase admin client
-let triggerFixed = false;
-async function ensureAuthTrigger(supabaseAdmin: any): Promise<{ ok: boolean; reason?: string }> {
-  if (triggerFixed) return { ok: true };
-
-  try {
-    console.log("🔧 Reparando triggers auth.users via SQL direto...");
-
-    // Use supabase admin RPC to execute SQL - first try to drop all old triggers
-    // and replace with a safe one that won't crash on missing columns
-    const { error: dropErr1 } = await supabaseAdmin.rpc('cleanup_incomplete_user', { user_email: '__trigger_check__' }).catch(() => ({ error: null }));
-
-    // We can't run raw SQL via the JS client, so we'll use a different approach:
-    // Create user with autoconfirm and handle profile creation ourselves.
-    // The key insight: if the trigger is broken, we need to work AROUND it.
-    triggerFixed = true;
-    console.log("✅ Trigger check concluído (fallback mode: criação manual de profile)");
-    return { ok: true };
-  } catch (e) {
-    console.error("⚠️ Erro no trigger check:", e.message);
-    return { ok: false, reason: e.message };
-  }
-}
-
 // CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,11 +16,10 @@ interface SendCredentialsRequest {
   tempPassword: string;
   role: string;
   planType: string;
-  mode?: 'create' | 'reset'; // 'reset' = apenas resetar senha de usuário existente
+  mode?: 'create' | 'reset';
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -52,10 +27,8 @@ serve(async (req) => {
   try {
     console.log("🚀 Iniciando processamento...");
 
-    // Parse request
     const { email, fullName, tempPassword, role, planType, mode }: SendCredentialsRequest = await req.json();
 
-    // Validate required fields
     if (!email || !fullName || !tempPassword) {
       return new Response(
         JSON.stringify({ error: 'Email, nome completo e senha são obrigatórios' }),
@@ -63,7 +36,6 @@ serve(async (req) => {
       );
     }
 
-    // Validate environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
@@ -77,7 +49,6 @@ serve(async (req) => {
       );
     }
 
-    // Create Supabase admin client
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     });
@@ -87,7 +58,7 @@ serve(async (req) => {
     let accessCode = 'START-' + Math.random().toString(36).substr(2, 8).toUpperCase();
 
     if (isReset) {
-      // ── MODO RESET: atualizar senha de usuário existente ──
+      // ── MODO RESET ──
       console.log("🔄 Modo RESET - Atualizando senha do usuário:", email);
 
       const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
@@ -108,7 +79,6 @@ serve(async (req) => {
 
       userId = existingUser.id;
 
-      // Atualizar senha via admin API
       const { error: updateError } = await supabaseAdmin.auth.admin.updateUser(userId, {
         password: tempPassword,
         email_confirm: true
@@ -125,7 +95,7 @@ serve(async (req) => {
       console.log("✅ Senha atualizada com sucesso para:", email);
 
     } else {
-      // ── MODO CREATE: criar novo usuário ──
+      // ── MODO CREATE ──
       console.log("🔍 Verificando se usuário já existe...");
 
       const { data: existingUser, error: checkError } = await supabaseAdmin.auth.admin.listUsers();
@@ -152,12 +122,7 @@ serve(async (req) => {
         if (profileError && profileError.code === 'PGRST116') {
           console.log("🧹 Usuário existe mas com dados incompletos. Limpando...");
           try {
-            const { error: cleanupError } = await supabaseAdmin.rpc('cleanup_incomplete_user', {
-              user_email: email
-            });
-            if (cleanupError) {
-              console.error("❌ Erro na limpeza SQL:", cleanupError);
-            }
+            await supabaseAdmin.rpc('cleanup_incomplete_user', { user_email: email }).catch(() => {});
             const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userExists.id);
             if (deleteError) {
               return new Response(
@@ -182,87 +147,25 @@ serve(async (req) => {
         }
       }
 
-      // Limpeza preventiva para remover resíduos de tentativas anteriores
-      const { error: preCleanupError } = await supabaseAdmin.rpc('cleanup_incomplete_user', {
-        user_email: email
-      });
-
-      if (preCleanupError) {
-        console.warn("⚠️ Limpeza preventiva falhou:", preCleanupError.message);
-      }
-
-      // Preparar trigger check
-      await ensureAuthTrigger(supabaseAdmin);
+      // Limpeza preventiva
+      await supabaseAdmin.rpc('cleanup_incomplete_user', { user_email: email }).catch(() => {});
+      await supabaseAdmin.from('profiles').delete().eq('email', email);
 
       console.log("✅ Email disponível, criando usuário...");
 
-      // Primeiro, limpar qualquer profile órfão com este email
-      await supabaseAdmin.from('profiles').delete().eq('email', email);
-
-      let authData: any;
-      let createUserError: any;
-
-      // Tentar criar o usuário
-      const result = await supabaseAdmin.auth.admin.createUser({
+      const { data: authData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
         email: email,
         password: tempPassword,
         email_confirm: true,
         user_metadata: { full_name: fullName }
       });
 
-      authData = result.data;
-      createUserError = result.error;
-
-      // Se falhou com "Database error creating new user", o trigger está quebrado
-      // Tentar abordagem alternativa: criar sem trigger via signUp
       if (createUserError) {
-        const normalizedMessage = (createUserError.message || '').toLowerCase();
-        const isTriggerDbError = normalizedMessage.includes('database error creating new user');
-
-        if (isTriggerDbError) {
-          console.log("⚠️ Trigger quebrado detectado. Tentando abordagem alternativa...");
-
-          // Limpar o usuário que pode ter sido parcialmente criado
-          try {
-            const { data: partialUsers } = await supabaseAdmin.auth.admin.listUsers();
-            const partialUser = partialUsers?.users?.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
-            if (partialUser) {
-              await supabaseAdmin.auth.admin.deleteUser(partialUser.id);
-              console.log("🗑️ Usuário parcial removido:", partialUser.id);
-            }
-          } catch (e) {
-            console.warn("⚠️ Erro ao limpar usuário parcial:", e);
-          }
-
-          // Desabilitar todos os triggers problemáticos usando a abordagem RPC
-          // Como não podemos executar SQL direto, vamos tentar outra vez
-          // após o cleanup - o trigger pode funcionar agora que não há conflito
-          const retryResult = await supabaseAdmin.auth.admin.createUser({
-            email: email,
-            password: tempPassword,
-            email_confirm: true,
-            user_metadata: { full_name: fullName }
-          });
-
-          if (retryResult.error) {
-            console.error("❌ Retry também falhou:", retryResult.error);
-            return new Response(
-              JSON.stringify({
-                error: `Erro persistente ao criar usuário. O trigger do banco de dados está com problemas. Acesse o Supabase Dashboard > Database > Triggers e remova os triggers "on_auth_user_created_simple" e "on_auth_user_created_link_admin" da tabela auth.users. Depois tente novamente.`,
-                details: retryResult.error.message
-              }),
-              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-
-          authData = retryResult.data;
-          createUserError = null;
-        } else {
-          return new Response(
-            JSON.stringify({ error: `Erro ao criar usuário: ${createUserError.message}` }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
+        console.error("❌ Erro ao criar usuário:", createUserError);
+        return new Response(
+          JSON.stringify({ error: `Erro ao criar usuário: ${createUserError.message}` }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
       if (!authData?.user) {
@@ -275,7 +178,7 @@ serve(async (req) => {
       userId = authData.user.id;
       console.log("✅ Usuário criado no auth:", userId);
 
-      // Create profile (upsert para lidar com trigger que pode ter criado parcialmente)
+      // Create profile (upsert para lidar com trigger que pode ter criado)
       const { error: profileError } = await supabaseAdmin
         .from('profiles')
         .upsert({
