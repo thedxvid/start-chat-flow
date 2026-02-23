@@ -37,7 +37,9 @@ import {
   Home,
   Upload,
   FileSpreadsheet,
-  Download
+  Download,
+  Search,
+  RefreshCw
 } from 'lucide-react';
 
 export function Admin() {
@@ -54,7 +56,8 @@ export function Admin() {
     updateUserSubscription,
     fetchUsers,
     cleanupIncompleteUsers,
-    bulkCreateUsers
+    bulkCreateUsers,
+    resetUserCredentials
   } = useAdmin();
 
   const [newAdminEmail, setNewAdminEmail] = useState('');
@@ -67,6 +70,8 @@ export function Admin() {
   const [bulkImportResults, setBulkImportResults] = useState<Array<{ email: string; success: boolean; error?: string }> | null>(null);
   const [bulkImportProgress, setBulkImportProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [resendingAccess, setResendingAccess] = useState<string | null>(null);
 
 
   // Form state for creating new user
@@ -74,7 +79,7 @@ export function Admin() {
     email: '',
     fullName: '',
     role: 'user' as 'user' | 'admin',
-    planType: 'free' as 'free' | 'premium' | 'pro'
+    planType: 'premium' as 'free' | 'premium' | 'pro'
   });
 
   if (loading) {
@@ -139,7 +144,7 @@ export function Admin() {
           email: '',
           fullName: '',
           role: 'user',
-          planType: 'free'
+          planType: 'premium'
         });
         setShowCreateUserDialog(false);
       } else {
@@ -342,6 +347,13 @@ export function Admin() {
   const formatCost = (cost: number) => {
     return `$${cost.toFixed(4)}`;
   };
+
+  const filteredUsers = searchQuery.trim()
+    ? users.filter(u =>
+        u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (u.profile?.full_name || '').toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : users;
 
   const adminUsers = users.filter(u => u.role === 'admin');
   const regularUsers = users.filter(u => u.role !== 'admin');
@@ -557,6 +569,23 @@ export function Admin() {
                 </div>
               </CardHeader>
               <CardContent>
+                {/* Barra de pesquisa */}
+                <div className="mb-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Pesquisar por nome ou email..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  {searchQuery && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {filteredUsers.length} resultado(s) encontrado(s)
+                    </p>
+                  )}
+                </div>
                 <div className="rounded-md border">
                   <Table>
                     <TableHeader>
@@ -571,7 +600,7 @@ export function Admin() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {users.map((user) => (
+                      {filteredUsers.map((user) => (
                         <TableRow key={user.id}>
                           <TableCell>
                             <div>
@@ -625,6 +654,34 @@ export function Admin() {
                                 <option value="inactive">Inativo</option>
                                 <option value="pending">Pendente</option>
                               </select>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-2 text-xs"
+                                disabled={resendingAccess === user.id}
+                                onClick={async () => {
+                                  setResendingAccess(user.id);
+                                  const result = await resetUserCredentials(
+                                    user.email,
+                                    user.profile?.full_name || user.email,
+                                    user.subscription?.plan_type
+                                  );
+                                  if (result.success) {
+                                    toast.success(result.message);
+                                  } else {
+                                    toast.error(result.error || 'Erro ao reenviar acesso');
+                                  }
+                                  setResendingAccess(null);
+                                }}
+                              >
+                                {resendingAccess === user.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                ) : (
+                                  <RefreshCw className="h-3 w-3 mr-1" />
+                                )}
+                                Reenviar
+                              </Button>
 
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>

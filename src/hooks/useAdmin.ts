@@ -446,6 +446,41 @@ export function useAdmin() {
     return results;
   };
 
+  // Função para reenviar acesso (resetar senha e enviar novo email)
+  const resetUserCredentials = async (email: string, fullName: string, planType?: string) => {
+    try {
+      const newPassword = 'START-' + Math.random().toString(36).slice(-8).toUpperCase();
+
+      const { data, error } = await supabase.functions.invoke('send-user-credentials', {
+        body: {
+          email,
+          fullName,
+          tempPassword: newPassword,
+          role: 'user',
+          planType: planType || 'premium',
+          mode: 'reset'
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      return {
+        success: true,
+        message: `Nova senha enviada para ${email}`,
+        tempPassword: newPassword
+      };
+    } catch (error: any) {
+      console.error('Erro ao reenviar credenciais:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
   return {
     isAdmin,
     loading,
@@ -459,6 +494,7 @@ export function useAdmin() {
     fetchUsers,
     resendWelcomeEmail,
     cleanupIncompleteUsers,
-    bulkCreateUsers
+    bulkCreateUsers,
+    resetUserCredentials
   };
 }
