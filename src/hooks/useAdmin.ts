@@ -112,7 +112,7 @@ export function useAdmin() {
       console.log('📤 Chamando Edge Function send-user-credentials...');
 
       // Criar usuário diretamente via Edge Function
-      const { data: emailData, error: emailError } = await supabase.functions.invoke('resend-credentials', {
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-user-credentials', {
         body: {
           email: userData.email,
           fullName: userData.fullName,
@@ -465,7 +465,7 @@ export function useAdmin() {
       for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
       const newPassword = 'START-' + code;
 
-      const { data, error } = await supabase.functions.invoke('resend-credentials', {
+      const { data, error } = await supabase.functions.invoke('send-user-credentials', {
         body: {
           email,
           fullName,
