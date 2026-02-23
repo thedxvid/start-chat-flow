@@ -1,61 +1,50 @@
 
+# Plano: Corrigir Fluxo de Recuperacao de Senha
 
-# Plano: Corrigir Reenvio de Credenciais para Usuarios Ja Cadastrados
+## Problema
 
-## Problema Raiz
+Quando o usuario clica no link de recuperacao de senha no email, ele e autenticado automaticamente pelo Supabase e redirecionado para a aplicacao. Porem, como esse usuario pode nao ter assinatura ativa, o `ProtectedRoute` bloqueia o acesso e exibe "Acesso Premium Necessario" em vez do formulario de redefinicao de senha.
 
-O erro `"A user with this email address has already been registered"` continua ocorrendo porque as versoes anteriores da Edge Function nao foram implantadas corretamente no Supabase. O codigo no repositorio ja trata usuarios existentes, mas a versao que esta rodando no servidor e uma versao antiga que falha quando o usuario ja existe.
+O problema tem duas causas:
+1. O `ProtectedRoute` nao verifica se o usuario esta no meio de um fluxo de recuperacao de senha
+2. Nao existe uma rota dedicada `/reset-password` fora da protecao de assinatura
 
 ## Solucao
 
-Reescrever **ambas** as Edge Functions (`send-user-credentials` e `resend-credentials`) com codigo identico e robusto, garantindo que:
+Duas alteracoes simples e eficazes:
 
-1. A tentativa de criar usuario que ja existe **nunca** cause erro 500
-2. Para usuarios existentes, busque o ID e atualize a senha
-3. O email via Resend seja **sempre** disparado no final
+### 1. ProtectedRoute - Detectar recovery e redirecionar
 
-Alem disso, verificar se o frontend esta chamando a funcao correta.
-
-## Mudancas Tecnicas
-
-### 1. `supabase/functions/resend-credentials/index.ts` (Reescrita Principal)
-
-A funcao sera reescrita com a seguinte logica simplificada e resiliente:
+Adicionar verificacao no `ProtectedRoute` para detectar tokens de recovery na URL hash. Se detectado, redirecionar automaticamente para `/auth` onde o formulario de nova senha ja existe.
 
 ```text
-FLUXO:
-  1. Recebe: email, fullName, tempPassword, role, planType, mode
-  2. Tenta criar usuario via POST /auth/v1/admin/users
-     - Se OK -> userId = resposta.id, isNewUser = true
-     - Se ERRO (422/already registered) -> NAO FALHA, continua
-  3. Se usuario ja existe:
-     a. Busca userId via POST /auth/v1/admin/generate_link (magiclink)
-     b. Se nao encontrou, busca paginada em /auth/v1/admin/users
-  4. Se encontrou userId -> Atualiza senha via PUT /auth/v1/admin/users/{id}
-  5. Se isNewUser -> Cria profile, role, subscription
-  6. SEMPRE envia email via Resend API com as credenciais
-  7. Retorna { success: true }
+FLUXO CORRIGIDO:
+  1. Usuario clica no link do email
+  2. Supabase autentica e redireciona (com hash #type=recovery)
+  3. ProtectedRoute detecta "type=recovery" no hash
+  4. Redireciona para /auth (que NAO esta protegida)
+  5. Auth.tsx detecta o recovery e mostra o formulario de nova senha
 ```
 
-Diferenca critica em relacao as versoes anteriores: cada bloco tera try/catch individual para que nenhum erro intermediario interrompa o fluxo antes do envio do email.
+### 2. Auth.tsx - Melhorar deteccao de recovery
 
-### 2. `supabase/functions/send-user-credentials/index.ts` (Espelho)
+Garantir que a pagina Auth detecte corretamente o evento `PASSWORD_RECOVERY` e tambem verifique a URL hash de forma robusta, incluindo apos redirecionamentos.
 
-Recebera o mesmo codigo da `resend-credentials` para garantir que ambos os endpoints funcionem, independente de qual o frontend chamar.
+## Detalhes Tecnicos
 
-### 3. `src/hooks/useAdmin.ts` (Verificacao)
+### Arquivo: `src/components/auth/ProtectedRoute.tsx`
 
-O frontend ja esta chamando `resend-credentials` (confirmado na linha 468). Nenhuma mudanca necessaria aqui a menos que haja erro de parsing na resposta. Sera adicionado um log extra para ajudar na depuracao caso o problema persista.
+- Antes da verificacao de `hasAccess`, checar se `window.location.hash` contem `type=recovery`
+- Se sim, fazer `Navigate to="/auth"` passando o hash completo para que Auth.tsx possa processar
 
-### 4. Verificacao de Deploy
+### Arquivo: `src/pages/Auth.tsx`
 
-Sera adicionado um identificador de versao no log da funcao (`v7`) para confirmar que a nova versao esta ativa. Ao testar, o log do Supabase deve mostrar `resend-credentials v7` -- se mostrar versao anterior, significa que o deploy nao ocorreu.
+- Melhorar o `useEffect` de deteccao de recovery para tambem verificar o hash apos um pequeno delay (para cobrir race conditions)
+- Adicionar listener para `PASSWORD_RECOVERY` event que funcione mesmo apos redirecionamento
 
 ## Resumo das Alteracoes
 
 | Arquivo | Acao |
 |---|---|
-| `supabase/functions/resend-credentials/index.ts` | Reescrita com try/catch individual por bloco |
-| `supabase/functions/send-user-credentials/index.ts` | Espelho da resend-credentials |
-| `src/hooks/useAdmin.ts` | Pequeno ajuste de log para debug |
-
+| `src/components/auth/ProtectedRoute.tsx` | Detectar hash de recovery e redirecionar para /auth |
+| `src/pages/Auth.tsx` | Melhorar deteccao robusta do evento de recovery |
