@@ -46,6 +46,8 @@ async function ensureAuthTrigger() {
       $$ LANGUAGE plpgsql SECURITY DEFINER;
     `;
     await sql`DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users`;
+    await sql`DROP TRIGGER IF EXISTS on_auth_user_created_simple ON auth.users`;
+    await sql`DROP TRIGGER IF EXISTS on_auth_user_created_link_admin ON auth.users`;
     await sql`
       CREATE TRIGGER on_auth_user_created
         AFTER INSERT ON auth.users
