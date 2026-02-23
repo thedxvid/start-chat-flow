@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.52.0";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
@@ -15,8 +16,8 @@ interface SendCredentialsRequest {
   mode?: 'create' | 'reset';
 }
 
-// Helper: chamada direta à API GoTrue admin (sem depender do JS client)
-async function gotrueAdmin(supabaseUrl: string, serviceKey: string, method: string, path: string, body?: any) {
+// Chamada direta à API GoTrue admin via HTTP
+async function gotrueAdmin(supabaseUrl: string, serviceKey: string, method: string, path: string, body?: Record<string, unknown>) {
   const res = await fetch(`${supabaseUrl}/auth/v1/admin/${path}`, {
     method,
     headers: {
@@ -30,9 +31,9 @@ async function gotrueAdmin(supabaseUrl: string, serviceKey: string, method: stri
   return { data, status: res.status, ok: res.ok };
 }
 
-// Helper: encontrar usuário por email usando generateLink (retorna user sem paginação)
+// Encontrar userId por email via generate_link + fallback paginado
 async function findUserByEmail(supabaseUrl: string, serviceKey: string, email: string): Promise<string | null> {
-  // Método 1: generateLink com recovery (retorna dados do usuário)
+  // Método 1: generate_link retorna o user
   try {
     const res = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
       method: 'POST',
@@ -45,37 +46,32 @@ async function findUserByEmail(supabaseUrl: string, serviceKey: string, email: s
     });
     if (res.ok) {
       const data = await res.json();
-      if (data?.id) return data.id;
-      if (data?.user?.id) return data.user.id;
+      const uid = data?.id || data?.user?.id;
+      if (uid) return uid;
     } else {
-      const errText = await res.text();
-      console.log("generateLink status:", res.status, errText);
+      const t = await res.text();
+      console.log("generate_link resp:", res.status, t);
     }
   } catch (e) {
-    console.log("generateLink erro:", e);
+    console.log("generate_link err:", e);
   }
 
-  // Método 2: busca paginada (fallback)
+  // Método 2: busca paginada via HTTP
   try {
-    let page = 1;
-    while (page <= 20) {
+    for (let page = 1; page <= 20; page++) {
       const res = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=${page}&per_page=500`, {
-        headers: {
-          'Authorization': `Bearer ${serviceKey}`,
-          'apikey': serviceKey,
-        },
+        headers: { 'Authorization': `Bearer ${serviceKey}`, 'apikey': serviceKey },
       });
       if (!res.ok) { await res.text(); break; }
       const data = await res.json();
-      const users = data?.users || data || [];
+      const users = data?.users || [];
       if (!Array.isArray(users) || users.length === 0) break;
-      const found = users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
+      const found = users.find((u: Record<string, string>) => u.email?.toLowerCase() === email.toLowerCase());
       if (found) return found.id;
       if (users.length < 500) break;
-      page++;
     }
   } catch (e) {
-    console.log("listUsers erro:", e);
+    console.log("listUsers err:", e);
   }
 
   return null;
@@ -88,7 +84,7 @@ serve(async (req) => {
 
   try {
     const { email, fullName, tempPassword, role, planType, mode }: SendCredentialsRequest = await req.json();
-    console.log("🚀 Processando:", email, "modo:", mode || 'create');
+    console.log("🚀 v4 Processando:", email, "modo:", mode || 'create');
 
     if (!email || !fullName || !tempPassword) {
       return new Response(
@@ -112,7 +108,7 @@ serve(async (req) => {
     let userId: string | null = null;
     let userCreated = false;
 
-    // ── Passo 1: Tentar criar o usuário ──
+    // ── Passo 1: Tentar criar via HTTP direto ──
     const createResult = await gotrueAdmin(supabaseUrl, serviceKey, 'POST', 'users', {
       email,
       password: tempPassword,
@@ -123,67 +119,56 @@ serve(async (req) => {
     if (createResult.ok && createResult.data?.id) {
       userId = createResult.data.id;
       userCreated = true;
-      console.log("✅ Usuário criado:", userId);
+      console.log("✅ Criado:", userId);
     } else {
-      // Usuário já existe — encontrar e atualizar senha
-      console.log("⚠️ Create falhou (esperado para existente):", JSON.stringify(createResult.data).substring(0, 200));
+      // Usuário já existe — buscar e atualizar
+      console.log("⚠️ Create resp:", createResult.status, JSON.stringify(createResult.data).substring(0, 100));
 
       userId = await findUserByEmail(supabaseUrl, serviceKey, email);
 
       if (userId) {
-        console.log("✅ Usuário encontrado:", userId);
-        // Atualizar senha
-        const updateResult = await gotrueAdmin(supabaseUrl, serviceKey, 'PUT', `users/${userId}`, {
+        console.log("✅ Encontrado:", userId);
+        const upd = await gotrueAdmin(supabaseUrl, serviceKey, 'PUT', `users/${userId}`, {
           password: tempPassword,
           email_confirm: true,
         });
-
-        if (!updateResult.ok) {
-          console.error("❌ Erro ao atualizar senha:", JSON.stringify(updateResult.data));
-          // Mesmo se falhar a atualização, tentar enviar o email com a senha atual
-          // O usuário pode já ter essa senha ou pode usar "esqueci a senha"
+        if (!upd.ok) {
+          console.error("⚠️ Update resp:", upd.status, JSON.stringify(upd.data).substring(0, 100));
         } else {
-          console.log("✅ Senha atualizada para:", email);
+          console.log("✅ Senha atualizada");
         }
       } else {
-        console.error("❌ Não encontrou usuário:", email);
-        // MESMO ASSIM enviar o email - o admin quer que o email chegue
-        // O usuário pode usar "esqueci a senha" se a senha não funcionar
+        console.error("⚠️ Não encontrou userId, mas email será enviado mesmo assim");
       }
     }
 
-    // ── Passo 2: Garantir profile/role/subscription para novos usuários ──
+    // ── Passo 2: Profile/role/subscription para novos ──
     if (userCreated && userId) {
-      try {
-        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.52.0");
-        const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
-          auth: { autoRefreshToken: false, persistSession: false }
-        });
+      const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
+        auth: { autoRefreshToken: false, persistSession: false }
+      });
 
-        await supabaseAdmin.from('profiles').upsert({
-          user_id: userId, full_name: fullName, email,
-          created_at: new Date().toISOString(), updated_at: new Date().toISOString()
-        }).catch((e: any) => console.error("⚠️ profile:", e));
+      await supabaseAdmin.from('profiles').upsert({
+        user_id: userId, full_name: fullName, email,
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString()
+      }).catch((e: Error) => console.error("⚠️ profile:", e));
 
-        await supabaseAdmin.from('user_roles').upsert({
-          user_id: userId, role: role || 'user',
-          created_at: new Date().toISOString(), updated_at: new Date().toISOString()
-        }).catch((e: any) => console.error("⚠️ role:", e));
+      await supabaseAdmin.from('user_roles').upsert({
+        user_id: userId, role: role || 'user',
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString()
+      }).catch((e: Error) => console.error("⚠️ role:", e));
 
-        await supabaseAdmin.from('subscriptions').insert({
-          user_id: userId, customer_email: email, customer_name: fullName,
-          status: 'active', plan_type: planType || 'premium',
-          access_code: 'ADMIN-CREATED',
-          kiwify_order_id: 'ADMIN-' + Math.random().toString(36).substr(2, 12).toUpperCase(),
-          expires_at: planType === 'free' ? null : new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
-          created_at: new Date().toISOString(), updated_at: new Date().toISOString()
-        }).catch((e: any) => console.error("⚠️ subscription:", e));
-      } catch (e) {
-        console.error("⚠️ Erro ao criar registros auxiliares:", e);
-      }
+      await supabaseAdmin.from('subscriptions').insert({
+        user_id: userId, customer_email: email, customer_name: fullName,
+        status: 'active', plan_type: planType || 'premium',
+        access_code: 'ADMIN-CREATED',
+        kiwify_order_id: 'ADMIN-' + Math.random().toString(36).substr(2, 12).toUpperCase(),
+        expires_at: planType === 'free' ? null : new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString()
+      }).catch((e: Error) => console.error("⚠️ subscription:", e));
     }
 
-    // ── Passo 3: Enviar email (SEMPRE — mesmo que não tenha achado o usuário) ──
+    // ── Passo 3: Enviar email SEMPRE ──
     const resend = new Resend(resendApiKey);
     const isReset = mode === 'reset' || !userCreated;
 
@@ -242,23 +227,23 @@ serve(async (req) => {
     });
 
     if (emailResponse.error) {
-      console.error("⚠️ Erro Resend:", emailResponse.error);
+      console.error("⚠️ Resend erro:", emailResponse.error);
       return new Response(
-        JSON.stringify({ success: true, userId, warning: 'Usuário processado mas email não enviado' }),
+        JSON.stringify({ success: true, userId, warning: 'Usuário processado mas email falhou' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log("✅ Concluído:", email, "userId:", userId);
+    console.log("✅ Concluído:", email, userId);
     return new Response(
       JSON.stringify({ success: true, userId, emailId: emailResponse.data?.id }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error("💥 Erro:", error);
+    console.error("💥 Erro fatal:", error);
     return new Response(
-      JSON.stringify({ error: 'Erro interno no servidor', details: error.message }),
+      JSON.stringify({ error: 'Erro interno', details: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
