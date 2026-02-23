@@ -1,57 +1,41 @@
 
 
-## Correcoes para os 3 problemas
+## Reenviar acesso em massa para os ultimos 92 usuarios
 
-### Problema 1: Email caindo no spam
+### O que sera feito
 
-Isso acontece por configuracao de DNS do dominio `sistemastart.com`, nao por codigo. Para resolver:
+Adicionar um botao "Reenviar Acesso em Massa" no painel admin que permite selecionar os ultimos N usuarios e reenviar credenciais (nova senha + email) para todos de uma vez, usando a funcao `resetUserCredentials` que ja existe e funciona corretamente.
 
-1. Acesse o painel do **Resend** (resend.com/domains)
-2. Verifique se o dominio `sistemastart.com` tem os registros DNS configurados:
-   - **SPF** (TXT record) - autoriza o Resend a enviar emails pelo seu dominio
-   - **DKIM** (CNAME records) - assina digitalmente os emails
-   - **DMARC** (TXT record) - politica de autenticacao
-3. Se algum registro estiver faltando ou com status "Pending", adicione-o no painel DNS do seu provedor de hospedagem
-4. Aguarde propagacao (pode levar ate 48h, mas geralmente e rapido)
+### Alteracoes
 
-Sem esses registros DNS, provedores como Gmail e Outlook marcam o email como spam.
+**1. `src/hooks/useAdmin.ts`** - Nova funcao `bulkResetCredentials`
 
-### Problema 2: Link com `/auth/auth` duplicado
+- Recebe uma lista de usuarios `{ email, fullName, planType }[]`
+- Para cada usuario, chama `resetUserCredentials` (que ja gera senha no formato `START-XXXXXXXX` e envia email via Edge Function com o link correto)
+- Adiciona delay de 1 segundo entre envios para nao sobrecarregar a API do Resend (limite de rate)
+- Retorna array de resultados (sucesso/erro por usuario)
+- Expoe a funcao no return do hook
 
-A variavel de ambiente `SITE_URL` no Supabase provavelmente esta configurada como `https://sistemastart.com/auth`. O codigo faz `siteUrl + "/auth"`, resultando em `sistemastart.com/auth/auth`.
+**2. `src/pages/Admin.tsx`** - Botao e dialog para reenvio em massa
 
-**Correcao no codigo:** Remover a barra `/auth` da concatenacao na Edge Function e usar apenas `siteUrl` diretamente, mas tambem garantir que o path `/auth` esteja incluido de forma segura. A melhor abordagem: limpar a trailing slash do `siteUrl` e manter o `/auth` no codigo, mas tambem verificar se o `SITE_URL` ja termina com `/auth`.
+- Adicionar botao "Reenviar Acesso em Massa" na aba de gerenciamento de usuarios
+- Dialog com:
+  - Campo numerico para definir quantos usuarios (padrao: 92)
+  - Preview dos usuarios que serao afetados (nome + email)
+  - Barra de progresso durante o envio
+  - Resultados finais mostrando sucesso/falha por usuario
+- Os usuarios sao ordenados por `created_at` descendente (mais recentes primeiro) e pega os primeiros N
 
-Alteracao em `supabase/functions/send-user-credentials/index.ts` (linha 42 e 274):
-- Limpar o `siteUrl` para nunca terminar com `/auth` ou `/`
-- Manter o link como `${cleanUrl}/auth`
+### Detalhes tecnicos
 
-```typescript
-// Linha 42 - limpar SITE_URL
-const rawSiteUrl = Deno.env.get('SITE_URL') || 'https://sistemastart.com';
-const siteUrl = rawSiteUrl.replace(/\/auth\/?$/, '').replace(/\/$/, '');
-```
+A funcao `resetUserCredentials` ja existente faz:
+1. Gera senha `START-XXXXXXXX`
+2. Chama Edge Function `send-user-credentials` com `mode: 'reset'`
+3. A Edge Function atualiza a senha no Supabase Auth e envia email com o link correto (`sistemastart.com/auth`)
 
-A linha 274 do template (`${siteUrl}/auth`) ja esta correta apos essa limpeza.
+O reenvio em massa simplesmente itera sobre os usuarios chamando essa funcao para cada um, com um delay de 1s entre chamadas para respeitar rate limits.
 
-### Problema 3: Senha vs Codigo de Acesso - para que serve cada um?
+### Estimativa de tempo
 
-O **codigo de acesso** (`access_code` na tabela `subscriptions`, formato `START-XXXXXXXX`) era usado no fluxo de **cadastro via Kiwify**: o usuario comprava, recebia um codigo, e usava esse codigo na aba "Cadastrar" para criar sua conta.
-
-Quando o admin cria o usuario manualmente, o codigo de acesso **nao tem utilidade** porque a conta ja esta criada. O usuario so precisa da **senha temporaria** para fazer login.
-
-**Correcao:** Remover a geracao do `access_code` no fluxo de criacao por admin na Edge Function, ja que nao serve para nada nesse contexto. E simplificar a mensagem do email para deixar claro que o usuario so precisa do email + senha.
-
-Alteracoes:
-- Na Edge Function, usar um `access_code` fixo como `'ADMIN-CREATED'` em vez de gerar um codigo aleatorio (para nao confundir)
-- Remover qualquer menção a "codigo de acesso" do email de admin (que ja nao esta no template atual, entao esta ok)
-
----
-
-### Resumo das alteracoes
-
-| Arquivo | Alteracao |
-|---|---|
-| `supabase/functions/send-user-credentials/index.ts` | Limpar `SITE_URL` para evitar `/auth/auth`; trocar `access_code` aleatorio por `'ADMIN-CREATED'` |
-| DNS do dominio (manual) | Configurar SPF, DKIM, DMARC no Resend para evitar spam |
+Com 92 usuarios e delay de 1s entre cada, o processo levara aproximadamente 2 minutos. A barra de progresso mostrara o andamento em tempo real.
 
