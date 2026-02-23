@@ -48,108 +48,69 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    // Link FIXO - nunca depende de variável de ambiente
     const loginUrl = 'https://sistemastart.com/auth';
 
-    // ── Passo 1: Tentar encontrar o usuário por email ──
     let userId: string | null = null;
     let userCreated = false;
 
-    // Buscar com paginação completa
-    let page = 1;
-    const perPage = 1000;
-    while (!userId) {
-      const { data: usersPage, error: listError } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
-      if (listError) {
-        console.error("❌ Erro ao listar usuários página", page, listError);
-        break;
-      }
-      const found = usersPage.users.find(u => u.email?.toLowerCase() === email.toLowerCase());
-      if (found) {
-        userId = found.id;
-        console.log("✅ Usuário encontrado:", userId);
-        break;
-      }
-      if (usersPage.users.length < perPage) break;
-      page++;
-    }
+    // ── Passo 1: Tentar criar o usuário diretamente ──
+    console.log("📝 Tentando criar usuário:", email);
+    const { data: createData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: { full_name: fullName }
+    });
 
-    // ── Passo 2: Se encontrou, atualiza senha. Se não, cria. ──
-    if (userId) {
-      // Atualizar senha do usuário existente
-      const { error: updateError } = await supabaseAdmin.auth.admin.updateUser(userId, {
-        password: tempPassword,
-        email_confirm: true
-      });
-      if (updateError) {
-        console.error("❌ Erro ao atualizar senha:", updateError);
-        return new Response(
-          JSON.stringify({ error: `Erro ao redefinir senha: ${updateError.message}` }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      console.log("✅ Senha atualizada para:", email);
+    if (!createError && createData?.user) {
+      // Criação bem-sucedida
+      userId = createData.user.id;
+      userCreated = true;
+      console.log("✅ Usuário criado:", userId);
     } else {
-      // Criar novo usuário
-      console.log("📝 Usuário não encontrado, criando:", email);
+      // Usuário já existe - encontrar via generateLink (não envia email, só retorna dados)
+      console.log("⚠️ Criação falhou:", createError?.message, "- buscando usuário existente...");
 
-      // Limpeza preventiva
-      await supabaseAdmin.rpc('cleanup_incomplete_user', { user_email: email }).catch(() => {});
-      await supabaseAdmin.from('profiles').delete().eq('email', email).catch(() => {});
+      try {
+        const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+          type: 'magiclink',
+          email: email,
+        });
 
-      const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password: tempPassword,
-        email_confirm: true,
-        user_metadata: { full_name: fullName }
-      });
-
-      if (createError) {
-        // Se falhou com "already registered", tenta buscar novamente e resetar
-        const errMsg = createError.message || '';
-        if (errMsg.toLowerCase().includes('already') || errMsg.toLowerCase().includes('registered')) {
-          console.log("⚠️ Race condition: usuário criado entre busca e create, tentando update...");
-          // Buscar novamente
-          let retryPage = 1;
-          while (!userId) {
-            const { data: rp } = await supabaseAdmin.auth.admin.listUsers({ page: retryPage, perPage: 1000 });
-            if (!rp) break;
-            const f = rp.users.find(u => u.email?.toLowerCase() === email.toLowerCase());
-            if (f) { userId = f.id; break; }
-            if (rp.users.length < 1000) break;
-            retryPage++;
-          }
-          if (userId) {
-            await supabaseAdmin.auth.admin.updateUser(userId, { password: tempPassword, email_confirm: true });
-            console.log("✅ Fallback: senha atualizada via retry para:", email);
-          } else {
-            return new Response(
-              JSON.stringify({ error: `Não foi possível criar nem encontrar o usuário: ${errMsg}` }),
-              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
+        if (linkData?.user?.id) {
+          userId = linkData.user.id;
+          console.log("✅ Usuário encontrado via generateLink:", userId);
         } else {
+          console.error("❌ generateLink falhou:", linkError?.message);
+        }
+      } catch (e) {
+        console.error("❌ Erro no generateLink:", e);
+      }
+
+      // Se encontrou o userId, atualizar a senha
+      if (userId) {
+        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+          password: tempPassword,
+          email_confirm: true
+        });
+        if (updateError) {
+          console.error("❌ Erro ao atualizar senha:", updateError.message);
           return new Response(
-            JSON.stringify({ error: `Erro ao criar usuário: ${errMsg}` }),
+            JSON.stringify({ error: `Erro ao redefinir senha: ${updateError.message}` }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-      } else if (authData?.user) {
-        userId = authData.user.id;
-        userCreated = true;
-        console.log("✅ Usuário criado:", userId);
+        console.log("✅ Senha atualizada para:", email);
+      } else {
+        return new Response(
+          JSON.stringify({ error: 'Não foi possível criar nem encontrar o usuário' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
     }
 
-    if (!userId) {
-      return new Response(
-        JSON.stringify({ error: 'Falha ao processar usuário - ID não obtido' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // ── Passo 3: Garantir profile/role/subscription existem ──
-    if (userCreated) {
+    // ── Passo 2: Garantir profile/role/subscription para novos usuários ──
+    if (userCreated && userId) {
       await supabaseAdmin.from('profiles').upsert({
         user_id: userId, full_name: fullName, email,
         created_at: new Date().toISOString(), updated_at: new Date().toISOString()
@@ -165,12 +126,12 @@ serve(async (req) => {
         status: 'active', plan_type: planType || 'premium',
         access_code: 'ADMIN-CREATED',
         kiwify_order_id: 'ADMIN-' + Math.random().toString(36).substr(2, 12).toUpperCase(),
-        expires_at: planType === 'free' ? null : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        expires_at: planType === 'free' ? null : new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
         created_at: new Date().toISOString(), updated_at: new Date().toISOString()
       }).catch(e => console.error("⚠️ subscription:", e));
     }
 
-    // ── Passo 4: Enviar email ──
+    // ── Passo 3: Enviar email ──
     const resend = new Resend(resendApiKey);
     const isReset = mode === 'reset';
 
