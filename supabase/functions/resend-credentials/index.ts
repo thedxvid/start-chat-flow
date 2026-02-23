@@ -19,7 +19,7 @@ Deno.serve(async (req: Request) => {
     const planType: string = body.planType || 'premium';
     const mode: string = body.mode || 'create';
 
-    console.log("🚀 resend-credentials v1 |", email, "| modo:", mode);
+    console.log("🚀 resend-credentials v7 |", email, "| modo:", mode);
 
     if (!email || !fullName || !tempPassword) {
       return new Response(JSON.stringify({ error: 'Campos obrigatórios faltando' }), { status: 400, headers });
@@ -42,45 +42,57 @@ Deno.serve(async (req: Request) => {
     let userId: string | null = null;
     let isNewUser = false;
 
-    // ── 1. Tentar criar usuário ──
-    const createRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
-      method: 'POST',
-      headers: authHeaders,
-      body: JSON.stringify({
-        email,
-        password: tempPassword,
-        email_confirm: true,
-        user_metadata: { full_name: fullName },
-      }),
-    });
-    const createText = await createRes.text();
-    let createData: Record<string, unknown> = {};
-    try { createData = JSON.parse(createText); } catch (_e) { /* ignore */ }
-
-    if (createRes.ok && createData.id) {
-      userId = createData.id as string;
-      isNewUser = true;
-      console.log("✅ Novo usuário:", userId);
-    } else {
-      console.log("ℹ️ Já existe, buscando...", createRes.status);
-
-      // ── 2. Buscar userId via generate_link ──
-      const linkRes = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
+    // ── BLOCO 1: Tentar criar usuário ──
+    try {
+      const createRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
         method: 'POST',
         headers: authHeaders,
-        body: JSON.stringify({ type: 'magiclink', email }),
+        body: JSON.stringify({
+          email,
+          password: tempPassword,
+          email_confirm: true,
+          user_metadata: { full_name: fullName },
+        }),
       });
-      const linkText = await linkRes.text();
-      let linkData: Record<string, unknown> = {};
-      try { linkData = JSON.parse(linkText); } catch (_e) { /* ignore */ }
+      const createText = await createRes.text();
+      let createData: Record<string, unknown> = {};
+      try { createData = JSON.parse(createText); } catch (_e) { /* ignore */ }
 
-      if (linkRes.ok) {
-        userId = (linkData.id || (linkData.user as Record<string, unknown>)?.id || null) as string | null;
-        if (userId) console.log("✅ Encontrado via link:", userId);
+      if (createRes.ok && createData.id) {
+        userId = createData.id as string;
+        isNewUser = true;
+        console.log("✅ Novo usuário criado:", userId);
+      } else {
+        console.log("ℹ️ Criação falhou (esperado se já existe):", createRes.status, createText.substring(0, 120));
       }
+    } catch (e) {
+      console.log("⚠️ Erro no bloco criar usuário (continuando):", e);
+    }
 
-      // ── 3. Fallback: busca paginada ──
-      if (!userId) {
+    // ── BLOCO 2: Buscar userId se não foi criado ──
+    if (!userId) {
+      try {
+        const linkRes = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({ type: 'magiclink', email }),
+        });
+        const linkText = await linkRes.text();
+        let linkData: Record<string, unknown> = {};
+        try { linkData = JSON.parse(linkText); } catch (_e) { /* ignore */ }
+
+        if (linkRes.ok) {
+          userId = (linkData.id || (linkData.user as Record<string, unknown>)?.id || null) as string | null;
+          if (userId) console.log("✅ Encontrado via generate_link:", userId);
+        }
+      } catch (e) {
+        console.log("⚠️ Erro no bloco generate_link (continuando):", e);
+      }
+    }
+
+    // ── BLOCO 3: Fallback busca paginada ──
+    if (!userId) {
+      try {
         for (let p = 1; p <= 10; p++) {
           const lRes = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=${p}&per_page=500`, {
             headers: { 'Authorization': `Bearer ${serviceKey}`, 'apikey': serviceKey },
@@ -92,67 +104,79 @@ Deno.serve(async (req: Request) => {
           const users = lData.users || [];
           if (users.length === 0) break;
           const match = users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
-          if (match) { userId = match.id; console.log("✅ Encontrado via busca:", userId); break; }
+          if (match) { userId = match.id; console.log("✅ Encontrado via busca paginada:", userId); break; }
           if (users.length < 500) break;
         }
+      } catch (e) {
+        console.log("⚠️ Erro no bloco busca paginada (continuando):", e);
       }
+    }
 
-      // ── 4. Atualizar senha ──
-      if (userId) {
+    // ── BLOCO 4: Atualizar senha do usuário existente ──
+    if (userId && !isNewUser) {
+      try {
         const upRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
           method: 'PUT',
           headers: authHeaders,
           body: JSON.stringify({ password: tempPassword, email_confirm: true }),
         });
-        await upRes.text();
-        console.log("✅ Senha atualizada:", upRes.status);
-      } else {
-        console.log("⚠️ userId não encontrado, email será enviado mesmo assim");
+        const upText = await upRes.text();
+        console.log("✅ Senha atualizada:", upRes.status, upText.substring(0, 80));
+      } catch (e) {
+        console.log("⚠️ Erro ao atualizar senha (continuando):", e);
       }
     }
 
-    // ── 5. Criar registros auxiliares para novos ──
-    if (isNewUser && userId) {
-      const pRes = await fetch(`${supabaseUrl}/rest/v1/profiles`, {
-        method: 'POST',
-        headers: { ...authHeaders, 'Prefer': 'resolution=merge-duplicates' },
-        body: JSON.stringify({ user_id: userId, full_name: fullName, email }),
-      });
-      await pRes.text();
-
-      const rRes = await fetch(`${supabaseUrl}/rest/v1/user_roles`, {
-        method: 'POST',
-        headers: { ...authHeaders, 'Prefer': 'resolution=merge-duplicates' },
-        body: JSON.stringify({ user_id: userId, role }),
-      });
-      await rRes.text();
-
-      const sRes = await fetch(`${supabaseUrl}/rest/v1/subscriptions`, {
-        method: 'POST',
-        headers: authHeaders,
-        body: JSON.stringify({
-          user_id: userId, customer_email: email, customer_name: fullName,
-          status: 'active', plan_type: planType,
-          access_code: 'ADMIN-CREATED',
-          kiwify_order_id: 'ADMIN-' + Math.random().toString(36).substr(2, 12).toUpperCase(),
-          expires_at: planType === 'free' ? null : new Date(Date.now() + 180 * 86400000).toISOString(),
-        }),
-      });
-      await sRes.text();
+    if (!userId) {
+      console.log("⚠️ userId não encontrado — email será enviado mesmo assim");
     }
 
-    // ── 6. Enviar email via Resend API ──
+    // ── BLOCO 5: Criar registros auxiliares para novos usuários ──
+    if (isNewUser && userId) {
+      try {
+        await fetch(`${supabaseUrl}/rest/v1/profiles`, {
+          method: 'POST',
+          headers: { ...authHeaders, 'Prefer': 'resolution=merge-duplicates' },
+          body: JSON.stringify({ user_id: userId, full_name: fullName, email }),
+        }).then(r => r.text());
+      } catch (e) { console.log("⚠️ Erro ao criar profile:", e); }
+
+      try {
+        await fetch(`${supabaseUrl}/rest/v1/user_roles`, {
+          method: 'POST',
+          headers: { ...authHeaders, 'Prefer': 'resolution=merge-duplicates' },
+          body: JSON.stringify({ user_id: userId, role }),
+        }).then(r => r.text());
+      } catch (e) { console.log("⚠️ Erro ao criar role:", e); }
+
+      try {
+        await fetch(`${supabaseUrl}/rest/v1/subscriptions`, {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({
+            user_id: userId, customer_email: email, customer_name: fullName,
+            status: 'active', plan_type: planType,
+            access_code: 'ADMIN-CREATED',
+            kiwify_order_id: 'ADMIN-' + Math.random().toString(36).substr(2, 12).toUpperCase(),
+            expires_at: planType === 'free' ? null : new Date(Date.now() + 180 * 86400000).toISOString(),
+          }),
+        }).then(r => r.text());
+      } catch (e) { console.log("⚠️ Erro ao criar subscription:", e); }
+    }
+
+    // ── BLOCO 6: SEMPRE enviar email via Resend ──
     const isReset = mode === 'reset' || !isNewUser;
     const loginUrl = 'https://sistemastart.com/auth';
 
-    const emailRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: 'Sistema Start <noreply@sistemastart.com>',
-        to: [email],
-        subject: isReset ? '🔑 Suas Novas Credenciais - Sistema Start' : '🎉 Bem-vindo ao Sistema Start',
-        html: `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/></head><body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;color:#333;">
+    try {
+      const emailRes = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: 'Sistema Start <noreply@sistemastart.com>',
+          to: [email],
+          subject: isReset ? '🔑 Suas Novas Credenciais - Sistema Start' : '🎉 Bem-vindo ao Sistema Start',
+          html: `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/></head><body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;color:#333;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:30px 0;"><tr><td align="center">
 <table width="600" style="max-width:600px;width:100%;">
 <tr><td style="background:linear-gradient(135deg,#667eea,#764ba2);padding:30px;text-align:center;border-radius:10px 10px 0 0;">
@@ -169,23 +193,27 @@ Deno.serve(async (req: Request) => {
 <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:15px;">
 <p style="margin:0;color:#7a5c00;font-size:13px;">⚠️ Use a aba <strong>"Entrar"</strong>. NÃO use "Cadastrar".</p></div>
 </td></tr></table></td></tr></table></body></html>`,
-      }),
-    });
-    const emailText = await emailRes.text();
-    let emailData: Record<string, unknown> = {};
-    try { emailData = JSON.parse(emailText); } catch (_e) { /* ignore */ }
+        }),
+      });
+      const emailText = await emailRes.text();
+      let emailData: Record<string, unknown> = {};
+      try { emailData = JSON.parse(emailText); } catch (_e) { /* ignore */ }
 
-    if (!emailRes.ok) {
-      console.error("⚠️ Resend falhou:", emailRes.status, emailText.substring(0, 100));
-      return new Response(JSON.stringify({ success: true, userId, warning: 'Email falhou' }), { status: 200, headers });
+      if (!emailRes.ok) {
+        console.error("⚠️ Resend falhou:", emailRes.status, emailText.substring(0, 100));
+        return new Response(JSON.stringify({ success: true, userId, warning: 'Email falhou mas credenciais atualizadas' }), { status: 200, headers });
+      }
+
+      console.log("✅ resend-credentials v7 OK:", email, userId, emailData.id);
+      return new Response(JSON.stringify({ success: true, userId, emailId: emailData.id }), { status: 200, headers });
+    } catch (e) {
+      console.error("⚠️ Erro ao enviar email (retornando sucesso parcial):", e);
+      return new Response(JSON.stringify({ success: true, userId, warning: 'Erro no envio do email' }), { status: 200, headers });
     }
-
-    console.log("✅ resend-credentials OK:", email, userId);
-    return new Response(JSON.stringify({ success: true, userId, emailId: emailData.id }), { status: 200, headers });
 
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error("💥 resend-credentials erro:", msg);
+    console.error("💥 resend-credentials v7 erro fatal:", msg);
     return new Response(JSON.stringify({ error: 'Erro interno', details: msg }), { status: 500, headers });
   }
 });
