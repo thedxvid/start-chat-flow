@@ -1,87 +1,57 @@
 
 
-## Problema: "Database error creating new user" persiste
+## Correcoes para os 3 problemas
 
-### Causa raiz confirmada
+### Problema 1: Email caindo no spam
 
-O trigger `on_auth_user_created_simple` na tabela `auth.users` chama a funcao `handle_new_user_simple()` que tenta inserir na tabela `profiles` **sem incluir a coluna `email`**. A coluna `email` e NOT NULL na tabela, entao o INSERT falha e o GoTrue retorna "Database error creating new user".
+Isso acontece por configuracao de DNS do dominio `sistemastart.com`, nao por codigo. Para resolver:
 
-O SQL anterior pode nao ter funcionado por varios motivos (erro silencioso, outro trigger ativo, etc).
+1. Acesse o painel do **Resend** (resend.com/domains)
+2. Verifique se o dominio `sistemastart.com` tem os registros DNS configurados:
+   - **SPF** (TXT record) - autoriza o Resend a enviar emails pelo seu dominio
+   - **DKIM** (CNAME records) - assina digitalmente os emails
+   - **DMARC** (TXT record) - politica de autenticacao
+3. Se algum registro estiver faltando ou com status "Pending", adicione-o no painel DNS do seu provedor de hospedagem
+4. Aguarde propagacao (pode levar ate 48h, mas geralmente e rapido)
 
-### Solucao: Migration definitiva + Edge Function limpa
+Sem esses registros DNS, provedores como Gmail e Outlook marcam o email como spam.
 
-**Passo 1: Nova migration que limpa TODOS os triggers e funcoes quebradas**
+### Problema 2: Link com `/auth/auth` duplicado
 
-Criar migration SQL que:
-- Remove TODOS os triggers possiveis em `auth.users` (3 nomes diferentes encontrados nas migrations)
-- Remove TODAS as funcoes de trigger antigas (5 funcoes diferentes)
-- Cria uma unica funcao `handle_new_user_v2()` que insere corretamente `user_id`, `full_name` E `email`
-- Cria um unico trigger `on_auth_user_created`
+A variavel de ambiente `SITE_URL` no Supabase provavelmente esta configurada como `https://sistemastart.com/auth`. O codigo faz `siteUrl + "/auth"`, resultando em `sistemastart.com/auth/auth`.
 
-```sql
--- Remover TODOS os triggers possiveis
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-DROP TRIGGER IF EXISTS on_auth_user_created_simple ON auth.users;
-DROP TRIGGER IF EXISTS on_auth_user_created_link_admin ON auth.users;
+**Correcao no codigo:** Remover a barra `/auth` da concatenacao na Edge Function e usar apenas `siteUrl` diretamente, mas tambem garantir que o path `/auth` esteja incluido de forma segura. A melhor abordagem: limpar a trailing slash do `siteUrl` e manter o `/auth` no codigo, mas tambem verificar se o `SITE_URL` ja termina com `/auth`.
 
--- Remover TODAS as funcoes de trigger antigas
-DROP FUNCTION IF EXISTS public.handle_new_user_simple();
-DROP FUNCTION IF EXISTS public.handle_new_user();
-DROP FUNCTION IF EXISTS public.link_admin_record_to_user();
-DROP FUNCTION IF EXISTS public.link_admin_record_to_user_v3();
-DROP FUNCTION IF EXISTS public.link_admin_record_to_user_v5();
-DROP FUNCTION IF EXISTS public.handle_normal_user_signup();
+Alteracao em `supabase/functions/send-user-credentials/index.ts` (linha 42 e 274):
+- Limpar o `siteUrl` para nunca terminar com `/auth` ou `/`
+- Manter o link como `${cleanUrl}/auth`
 
--- Criar funcao segura
-CREATE OR REPLACE FUNCTION public.handle_new_user_v2()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
-BEGIN
-  INSERT INTO public.profiles (user_id, full_name, email)
-  VALUES (
-    NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
-    NEW.email
-  )
-  ON CONFLICT (user_id) DO UPDATE SET
-    email = EXCLUDED.email,
-    full_name = COALESCE(EXCLUDED.full_name, profiles.full_name);
-  RETURN NEW;
-EXCEPTION
-  WHEN OTHERS THEN
-    RAISE WARNING 'handle_new_user_v2 error: %', SQLERRM;
-    RETURN NEW;
-END;
-$$;
-
--- Criar trigger unico
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_new_user_v2();
+```typescript
+// Linha 42 - limpar SITE_URL
+const rawSiteUrl = Deno.env.get('SITE_URL') || 'https://sistemastart.com';
+const siteUrl = rawSiteUrl.replace(/\/auth\/?$/, '').replace(/\/$/, '');
 ```
 
-**Passo 2: Manter a Edge Function como esta**
+A linha 274 do template (`${siteUrl}/auth`) ja esta correta apos essa limpeza.
 
-A Edge Function atual ja esta limpa e correta - ela cria o usuario via `admin.createUser()`, depois faz upsert manual no profile/role/subscription. Nao precisa de alteracoes.
+### Problema 3: Senha vs Codigo de Acesso - para que serve cada um?
 
-### Por que o SQL anterior pode nao ter funcionado
+O **codigo de acesso** (`access_code` na tabela `subscriptions`, formato `START-XXXXXXXX`) era usado no fluxo de **cadastro via Kiwify**: o usuario comprava, recebia um codigo, e usava esse codigo na aba "Cadastrar" para criar sua conta.
 
-1. Se houve erro ao executar (por exemplo, se `handle_new_user_v2` ja existia com assinatura diferente)
-2. Se o trigger `on_auth_user_created_simple` nao foi dropado (nome diferente do `on_auth_user_created`)
-3. Se havia multiplos triggers ativos simultaneamente
+Quando o admin cria o usuario manualmente, o codigo de acesso **nao tem utilidade** porque a conta ja esta criada. O usuario so precisa da **senha temporaria** para fazer login.
 
-### O que muda nesta solucao
+**Correcao:** Remover a geracao do `access_code` no fluxo de criacao por admin na Edge Function, ja que nao serve para nada nesse contexto. E simplificar a mensagem do email para deixar claro que o usuario so precisa do email + senha.
 
-- A migration limpa **todos os 3 nomes de trigger** e **todas as 6 funcoes** que foram criadas ao longo das migrations
-- Usa `ON CONFLICT DO UPDATE` em vez de `DO NOTHING` para garantir que o email seja preenchido
-- Resultado: apenas 1 trigger e 1 funcao, simples e funcional
+Alteracoes:
+- Na Edge Function, usar um `access_code` fixo como `'ADMIN-CREATED'` em vez de gerar um codigo aleatorio (para nao confundir)
+- Remover qualquer menção a "codigo de acesso" do email de admin (que ja nao esta no template atual, entao esta ok)
 
-### Instrucoes apos aprovar
+---
 
-Depois que a migration for criada, voce deve:
-1. Ir no Supabase Dashboard
-2. Abrir o SQL Editor
-3. Copiar e colar o SQL da migration
-4. Executar e confirmar que nao houve erros
-5. Tentar criar um usuario novamente
+### Resumo das alteracoes
+
+| Arquivo | Alteracao |
+|---|---|
+| `supabase/functions/send-user-credentials/index.ts` | Limpar `SITE_URL` para evitar `/auth/auth`; trocar `access_code` aleatorio por `'ADMIN-CREATED'` |
+| DNS do dominio (manual) | Configurar SPF, DKIM, DMARC no Resend para evitar spam |
 
