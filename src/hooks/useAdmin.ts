@@ -104,7 +104,10 @@ export function useAdmin() {
       console.log('🚀 Iniciando criação de usuário:', userData);
 
       // Gerar senha temporária
-      const tempPassword = 'TEMP-' + Math.random().toString(36).slice(-8).toUpperCase();
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = '';
+      for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+      const tempPassword = 'TEMP-' + code;
 
       console.log('📤 Chamando Edge Function send-user-credentials...');
 
@@ -449,7 +452,10 @@ export function useAdmin() {
   // Função para reenviar acesso (resetar senha e enviar novo email)
   const resetUserCredentials = async (email: string, fullName: string, planType?: string) => {
     try {
-      const newPassword = 'START-' + Math.random().toString(36).slice(-8).toUpperCase();
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = '';
+      for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+      const newPassword = 'START-' + code;
 
       const { data, error } = await supabase.functions.invoke('send-user-credentials', {
         body: {
