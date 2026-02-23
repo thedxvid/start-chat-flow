@@ -108,7 +108,7 @@ export function ChatLayout() {
     }
   };
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, image?: string) => {
     if (!activeConversationId || isLoading) return;
 
     const activeConversation = conversations.find(conv => conv.id === activeConversationId);
@@ -118,7 +118,8 @@ export function ChatLayout() {
       id: Date.now().toString(),
       content,
       sender: 'user',
-      timestamp: new Date()
+      timestamp: new Date(),
+      image
     };
 
     // Add user message to conversation

@@ -31,12 +31,14 @@ export default function Landing() {
                 onClick={handleLogin}
                 variant="ghost"
                 className="text-foreground hover:text-primary"
+                size="sm"
               >
-                <LogIn className="h-4 w-4 mr-2" />
-                Entrar
+                <LogIn className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Entrar</span>
               </Button>
-              <Button onClick={handleCheckout} className="bg-gradient-primary hover:bg-primary-hover">
-                Começar Agora
+              <Button onClick={handleCheckout} className="bg-gradient-primary hover:bg-primary-hover text-sm sm:text-base px-3 sm:px-4" size="sm">
+                <span className="hidden sm:inline">Começar Agora</span>
+                <span className="sm:hidden">Começar</span>
               </Button>
             </div>
           </div>
@@ -44,17 +46,17 @@ export default function Landing() {
       </header>
 
       {/* Hero Section */}
-      <section className="py-20 px-4">
+      <section className="py-10 sm:py-16 md:py-20 px-4">
         <div className="container mx-auto text-center max-w-4xl">
           <Badge variant="secondary" className="mb-6 bg-primary/10 text-primary border-primary/20">
             ✨ Sistema Start — by Nathalia Ouro
           </Badge>
 
-          <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-6 leading-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 sm:mb-6 leading-tight">
             Sua mentora expert para <span className="text-primary">criar e vender</span> produtos digitais
           </h1>
 
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg md:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto">
             A Nathi é sua mentora IA do Sistema Start. Ela te guia passo a passo para criar e-books, cursos, mentorias
             e estratégias de marketing que realmente vendem.
           </p>
@@ -94,7 +96,7 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
             <Card className="border-primary/20 hover:border-primary/40 transition-colors">
               <CardHeader>
                 <MessageCircle className="h-12 w-12 text-primary mb-4" />
