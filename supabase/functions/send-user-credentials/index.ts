@@ -2,6 +2,53 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.52.0";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import postgres from "https://deno.land/x/postgresjs@v3.4.4/mod.js";
+
+// Fix auth trigger to include email field in profiles (runs once per cold start)
+let triggerFixed = false;
+async function ensureAuthTrigger() {
+  if (triggerFixed) return;
+  const dbUrl = Deno.env.get('SUPABASE_DB_URL');
+  if (!dbUrl) {
+    console.log("⚠️ SUPABASE_DB_URL não disponível, pulando fix do trigger");
+    return;
+  }
+  const sql = postgres(dbUrl, { max: 1 });
+  try {
+    await sql`
+      CREATE OR REPLACE FUNCTION public.handle_new_user()
+      RETURNS trigger AS $$
+      BEGIN
+        INSERT INTO public.profiles (user_id, email, full_name, created_at, updated_at)
+        VALUES (
+          NEW.id,
+          NEW.email,
+          COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
+          NOW(),
+          NOW()
+        )
+        ON CONFLICT (user_id) DO UPDATE SET
+          email = EXCLUDED.email,
+          full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), profiles.full_name),
+          updated_at = NOW();
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql SECURITY DEFINER;
+    `;
+    await sql`DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users`;
+    await sql`
+      CREATE TRIGGER on_auth_user_created
+        AFTER INSERT ON auth.users
+        FOR EACH ROW EXECUTE FUNCTION public.handle_new_user()
+    `;
+    triggerFixed = true;
+    console.log("✅ Auth trigger configurado com sucesso");
+  } catch (e) {
+    console.error("⚠️ Erro ao configurar trigger:", e.message);
+  } finally {
+    await sql.end();
+  }
+}
 
 // CORS headers
 const corsHeaders = {
@@ -158,6 +205,8 @@ serve(async (req) => {
         }
       }
 
+      // Garantir que o trigger auth inclui email no profiles
+      await ensureAuthTrigger();
       console.log("✅ Email disponível, criando usuário...");
 
       const { data: authData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
