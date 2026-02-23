@@ -4,7 +4,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Bot, User, Loader2, Sparkles, Menu, X } from 'lucide-react';
+import { Send, Bot, User, Loader2, Sparkles, Menu, X, ImageIcon } from 'lucide-react';
 
 // Formata markdown básico: **negrito**, listas numeradas e quebras de linha
 function formatMessage(text: string): React.ReactNode[] {
@@ -57,12 +57,13 @@ interface Message {
   content: string;
   sender: 'user' | 'ai';
   timestamp: Date;
+  image?: string;
 }
 
 interface ChatAreaProps {
   conversationId?: string;
   messages: Message[];
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string, image?: string) => void;
   isTyping?: boolean;
   isSidebarOpen?: boolean;
   onToggleSidebar?: () => void;
@@ -77,17 +78,32 @@ export function ChatArea({
   onToggleSidebar
 }: ChatAreaProps) {
   const [inputValue, setInputValue] = useState('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSelectedImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
   const handleSend = () => {
-    if (inputValue.trim() && !isTyping) {
-      onSendMessage(inputValue.trim());
+    if ((inputValue.trim() || selectedImage) && !isTyping) {
+      onSendMessage(inputValue.trim(), selectedImage || undefined);
       setInputValue('');
+      setSelectedImage(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
@@ -291,6 +307,13 @@ export function ChatArea({
                             : 'bg-card border border-border/50 text-foreground rounded-bl-md'
                             } ${!isFirst ? (message.sender === 'user' ? 'rounded-tr-md' : 'rounded-tl-md') : ''}`}
                         >
+                          {message.image && (
+                            <img
+                              src={message.image}
+                              alt="Imagem anexada"
+                              className="max-w-full rounded-lg mb-2 max-h-[200px] object-cover"
+                            />
+                          )}
                           <div className="text-sm leading-relaxed">
                             {message.sender === 'ai'
                               ? formatMessage(message.content)
@@ -343,7 +366,36 @@ export function ChatArea({
       {/* Input */}
       <div className="p-3 sm:p-4 border-t border-border/50 bg-card/50 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto">
+          {selectedImage && (
+            <div className="relative inline-block mb-2">
+              <img src={selectedImage} alt="Preview" className="h-20 w-auto rounded-lg border border-border" />
+              <button
+                onClick={() => {
+                  setSelectedImage(null);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 shadow-sm hover:bg-red-600"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
           <div className="flex gap-2 sm:gap-3 items-end">
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleImageUpload}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-[48px] sm:h-[52px] w-[48px] sm:w-[52px] rounded-2xl p-0 flex-shrink-0 text-muted-foreground hover:text-primary hover:border-primary/50"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <ImageIcon className="h-5 w-5" />
+            </Button>
             <div className="flex-1 relative">
               <Textarea
                 ref={textareaRef}
@@ -364,9 +416,9 @@ export function ChatArea({
             <Button
               onClick={handleSend}
               size="sm"
-              disabled={!inputValue.trim() || isTyping}
+              disabled={(!inputValue.trim() && !selectedImage) || isTyping}
               className="shadow-lg min-w-[48px] sm:min-w-[52px] h-[48px] sm:h-[52px] rounded-2xl transition-all hover:scale-105 disabled:hover:scale-100 disabled:opacity-50"
-              style={{ background: inputValue.trim() && !isTyping ? 'var(--gradient-gold-shine)' : undefined, color: inputValue.trim() && !isTyping ? 'hsl(var(--gold-foreground))' : undefined }}
+              style={{ background: (inputValue.trim() || selectedImage) && !isTyping ? 'var(--gradient-gold-shine)' : undefined, color: (inputValue.trim() || selectedImage) && !isTyping ? 'hsl(var(--gold-foreground))' : undefined }}
             >
               {isTyping ? (
                 <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />

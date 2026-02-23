@@ -140,7 +140,7 @@ const Index = () => {
   if (conversations.length > 0) {
     return (
       <div className="min-h-screen bg-background flex">
-        <div className="w-80 border-r border-border/40 bg-card">
+        <div className="hidden md:block w-80 border-r border-border/40 bg-card">
           <ChatSidebar
             conversations={conversations}
             onNewChat={handleNewChat}
@@ -284,7 +284,7 @@ function MainContent({
             </div>
 
             {/* Headline */}
-            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground leading-[1.1]">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground leading-[1.1]">
               O que você vai{' '}
               <span style={{ color: 'hsl(42 55% 44%)' }}>criar hoje?</span>
             </h1>
