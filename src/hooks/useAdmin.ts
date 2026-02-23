@@ -115,7 +115,7 @@ export function useAdmin() {
           fullName: userData.fullName,
           tempPassword: tempPassword,
           role: userData.role || 'user',
-          planType: userData.planType || 'free'
+          planType: userData.planType || 'premium'
         }
       });
 
@@ -426,7 +426,7 @@ export function useAdmin() {
           email: userData.email,
           fullName: userData.fullName,
           role: userData.role || 'user',
-          planType: userData.planType || 'free',
+          planType: userData.planType || 'premium',
         });
         results.push({ email: userData.email, success: true });
       } catch (error: any) {

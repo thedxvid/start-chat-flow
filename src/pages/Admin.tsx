@@ -229,7 +229,7 @@ export function Admin() {
             ''
           ).toString().trim(),
           role: (row.role || row.Role || row.funcao || row.Funcao || row['Função'] || 'user').toString().trim().toLowerCase() as 'user' | 'admin',
-          planType: (row.plano || row.Plano || row.plan || row.Plan || row.planType || row.plan_type || 'free').toString().trim().toLowerCase() as 'free' | 'premium' | 'pro',
+          planType: (row.plano || row.Plano || row.plan || row.Plan || row.planType || row.plan_type || 'premium').toString().trim().toLowerCase() as 'free' | 'premium' | 'pro',
         })).filter((u: any) => u.email && u.fullName);
 
         if (parsed.length === 0) {
