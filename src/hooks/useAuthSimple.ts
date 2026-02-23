@@ -105,7 +105,7 @@ export const useAuthProvider = () => {
       if (data) {
         // Check if subscription is still valid
         const isValid = !data.expires_at || new Date(data.expires_at) > new Date();
-        setIsSubscribed(isValid && data.plan_type !== 'free');
+        setIsSubscribed(isValid);
         console.log('Subscription status:', { isValid, plan_type: data.plan_type });
       } else {
         // Se não há dados de subscription, liberar acesso temporário
