@@ -79,6 +79,8 @@ export function Admin() {
   const [bulkResetProgress, setBulkResetProgress] = useState(0);
   const [bulkResetTotal, setBulkResetTotal] = useState(0);
   const [bulkResetResults, setBulkResetResults] = useState<Array<{ email: string; success: boolean; error?: string }> | null>(null);
+  const [bulkResetMode, setBulkResetMode] = useState<'recent' | 'paste'>('recent');
+  const [pastedEmails, setPastedEmails] = useState('');
 
 
   // Form state for creating new user
@@ -273,6 +275,55 @@ export function Admin() {
       toast.warning(`Concluído: ${successCount} com sucesso, ${failCount} com erro.`);
     }
   };
+
+  // ── Reenvio por lista colada de emails ──
+  const handleBulkResetFromPaste = async () => {
+    const emailList = pastedEmails
+      .split(/[\n,;]+/)
+      .map(e => e.trim().toLowerCase())
+      .filter(e => e && e.includes('@'));
+
+    if (emailList.length === 0) {
+      toast.error('Nenhum email válido encontrado');
+      return;
+    }
+
+    const usersList = emailList.map(email => {
+      const u = users.find(u => u.email.toLowerCase() === email);
+      return {
+        email,
+        fullName: u?.profile?.full_name || email.split('@')[0],
+        planType: u?.subscription?.plan_type || 'premium'
+      };
+    });
+
+    setBulkResetting(true);
+    setBulkResetProgress(0);
+    setBulkResetTotal(usersList.length);
+    setBulkResetResults(null);
+
+    const results = await bulkResetCredentials(usersList, (current, total) => {
+      setBulkResetProgress(current);
+      setBulkResetTotal(total);
+    });
+
+    setBulkResetResults(results);
+    setBulkResetting(false);
+
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    if (failCount === 0) {
+      toast.success(`Acesso reenviado para todos os ${successCount} usuários!`);
+    } else {
+      toast.warning(`Concluído: ${successCount} com sucesso, ${failCount} com erro.`);
+    }
+  };
+
+  const parsedPastedEmails = pastedEmails
+    .split(/[\n,;]+/)
+    .map(e => e.trim().toLowerCase())
+    .filter(e => e && e.includes('@'));
 
   const bulkResetPreviewUsers = [...users]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -1140,49 +1191,119 @@ export function Admin() {
             <DialogHeader>
               <DialogTitle>Reenviar Acesso em Massa</DialogTitle>
               <DialogDescription>
-                Gera nova senha e envia email com credenciais para os últimos N usuários cadastrados.
-                Com delay de 1s entre envios (~{Math.ceil(bulkResetCount / 60)} min para {bulkResetCount} usuários).
+                Gera nova senha e envia email com credenciais. Delay de 1s entre envios.
               </DialogDescription>
             </DialogHeader>
 
             {!bulkResetting && !bulkResetResults && (
               <div className="space-y-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="bulkResetCount">Quantidade de usuários (mais recentes)</Label>
-                  <Input
-                    id="bulkResetCount"
-                    type="number"
-                    min={1}
-                    max={users.length}
-                    value={bulkResetCount}
-                    onChange={(e) => setBulkResetCount(Math.min(Number(e.target.value) || 1, users.length))}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Total disponível: {users.length} usuários
-                  </p>
+                {/* Tabs para escolher modo */}
+                <div className="flex gap-2 border-b pb-2">
+                  <Button
+                    variant={bulkResetMode === 'recent' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setBulkResetMode('recent')}
+                  >
+                    <Users className="h-4 w-4 mr-1" />
+                    Últimos N usuários
+                  </Button>
+                  <Button
+                    variant={bulkResetMode === 'paste' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setBulkResetMode('paste')}
+                  >
+                    <Mail className="h-4 w-4 mr-1" />
+                    Colar Emails
+                  </Button>
                 </div>
 
-                {bulkResetPreviewUsers.length > 0 && (
-                  <div className="border rounded-md max-h-[300px] overflow-y-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>#</TableHead>
-                          <TableHead>Nome</TableHead>
-                          <TableHead>Email</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {bulkResetPreviewUsers.map((u, idx) => (
-                          <TableRow key={u.id}>
-                            <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
-                            <TableCell>{u.profile?.full_name || '-'}</TableCell>
-                            <TableCell className="text-xs">{u.email}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                {bulkResetMode === 'recent' && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label htmlFor="bulkResetCount">Quantidade de usuários (mais recentes)</Label>
+                      <Input
+                        id="bulkResetCount"
+                        type="number"
+                        min={1}
+                        max={users.length}
+                        value={bulkResetCount}
+                        onChange={(e) => setBulkResetCount(Math.min(Number(e.target.value) || 1, users.length))}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Total disponível: {users.length} usuários
+                      </p>
+                    </div>
+                    {bulkResetPreviewUsers.length > 0 && (
+                      <div className="border rounded-md max-h-[300px] overflow-y-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>#</TableHead>
+                              <TableHead>Nome</TableHead>
+                              <TableHead>Email</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {bulkResetPreviewUsers.map((u, idx) => (
+                              <TableRow key={u.id}>
+                                <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+                                <TableCell>{u.profile?.full_name || '-'}</TableCell>
+                                <TableCell className="text-xs">{u.email}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {bulkResetMode === 'paste' && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label>Cole os emails (um por linha, ou separados por vírgula)</Label>
+                      <textarea
+                        className="min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        placeholder={"email1@example.com\nemail2@example.com\nemail3@example.com"}
+                        value={pastedEmails}
+                        onChange={(e) => setPastedEmails(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {parsedPastedEmails.length} email(s) válido(s) detectado(s)
+                      </p>
+                    </div>
+                    {parsedPastedEmails.length > 0 && (
+                      <div className="border rounded-md max-h-[200px] overflow-y-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>#</TableHead>
+                              <TableHead>Email</TableHead>
+                              <TableHead>Cadastrado?</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {parsedPastedEmails.map((email, idx) => {
+                              const found = users.find(u => u.email.toLowerCase() === email);
+                              return (
+                                <TableRow key={idx}>
+                                  <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+                                  <TableCell className="text-xs">{email}</TableCell>
+                                  <TableCell>
+                                    {found ? (
+                                      <Badge variant="default" className="text-xs"><CheckCircle className="h-3 w-3 mr-1" />Sim</Badge>
+                                    ) : (
+                                      <Badge variant="secondary" className="text-xs"><AlertCircle className="h-3 w-3 mr-1" />Novo</Badge>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -1251,7 +1372,7 @@ export function Admin() {
               >
                 {bulkResetResults ? 'Fechar' : 'Cancelar'}
               </Button>
-              {!bulkResetResults && (
+              {!bulkResetResults && bulkResetMode === 'recent' && (
                 <Button
                   onClick={handleBulkReset}
                   disabled={bulkResetting || bulkResetPreviewUsers.length === 0}
@@ -1262,6 +1383,19 @@ export function Admin() {
                     <RefreshCw className="h-4 w-4 mr-2" />
                   )}
                   Reenviar para {bulkResetPreviewUsers.length} Usuário(s)
+                </Button>
+              )}
+              {!bulkResetResults && bulkResetMode === 'paste' && (
+                <Button
+                  onClick={handleBulkResetFromPaste}
+                  disabled={bulkResetting || parsedPastedEmails.length === 0}
+                >
+                  {bulkResetting ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  Reenviar para {parsedPastedEmails.length} Email(s)
                 </Button>
               )}
               {bulkResetResults && bulkResetResults.filter(r => !r.success).length > 0 && (
