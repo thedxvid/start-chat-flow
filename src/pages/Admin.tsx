@@ -196,6 +196,43 @@ export function Admin() {
     }
   };
 
+  // ── Reenviar apenas para os que falharam ──
+  const handleRetryFailed = async () => {
+    const failedEmails = bulkResetResults?.filter(r => !r.success) || [];
+    if (failedEmails.length === 0) return;
+
+    const usersList = failedEmails.map(f => {
+      const u = users.find(u => u.email === f.email);
+      return {
+        email: f.email,
+        fullName: u?.profile?.full_name || f.email,
+        planType: u?.subscription?.plan_type || 'premium'
+      };
+    });
+
+    setBulkResetting(true);
+    setBulkResetProgress(0);
+    setBulkResetTotal(usersList.length);
+    setBulkResetResults(null);
+
+    const results = await bulkResetCredentials(usersList, (current, total) => {
+      setBulkResetProgress(current);
+      setBulkResetTotal(total);
+    });
+
+    setBulkResetResults(results);
+    setBulkResetting(false);
+
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    if (failCount === 0) {
+      toast.success(`Todos os ${successCount} reenvios concluídos com sucesso!`);
+    } else {
+      toast.warning(`Concluído: ${successCount} com sucesso, ${failCount} com erro.`);
+    }
+  };
+
   // ── Reenvio em massa de credenciais ──
   const handleBulkReset = async () => {
     // Ordenar por created_at desc e pegar os primeiros N
@@ -1225,6 +1262,12 @@ export function Admin() {
                     <RefreshCw className="h-4 w-4 mr-2" />
                   )}
                   Reenviar para {bulkResetPreviewUsers.length} Usuário(s)
+                </Button>
+              )}
+              {bulkResetResults && bulkResetResults.filter(r => !r.success).length > 0 && (
+                <Button onClick={handleRetryFailed} disabled={bulkResetting}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Reenviar para {bulkResetResults.filter(r => !r.success).length} Falho(s)
                 </Button>
               )}
             </DialogFooter>
