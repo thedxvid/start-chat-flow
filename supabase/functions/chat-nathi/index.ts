@@ -397,7 +397,7 @@ serve(async (req) => {
           }
           content.push({
             type: 'image_url',
-            image_url: { url: msg.image, detail: 'low' }
+            image_url: { url: msg.image, detail: 'auto' }
           });
           return { role, content };
         }
