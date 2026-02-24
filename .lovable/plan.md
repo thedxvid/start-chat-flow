@@ -1,54 +1,61 @@
 
 
-# Plano: Corrigir Modulos do Suporte, Upload de Imagem no Chat e Responsividade Mobile
+# Plano: Corrigir Redirecionamento de Recuperacao de Senha
 
-## 1. Remover Modulos 12 e 13 do Suporte
+## Problema Raiz
 
-No arquivo `src/pages/Suporte.tsx`, os modulos com id 12 ("Estrutura") e id 13 ("Estrutura Ativa") serao removidos do array `MODULES`. Os modulos restantes (14, 15, 16) terao seus ids renumerados para 12, 13, 14 respectivamente, mantendo a sequencia correta.
+Quando o usuario clica no link de recuperacao no email, o Supabase **consome o hash** (`#type=recovery`) durante o processamento do token e autentica o usuario automaticamente. Depois disso, o hash desaparece da URL. Entao quando o `ProtectedRoute` verifica `window.location.hash`, ele nao encontra mais `type=recovery` -- o usuario ja esta autenticado e e enviado direto para o dashboard.
 
-Tambem sera atualizado o arquivo `documentacao_agente_suporte.md` para refletir a mesma mudanca, removendo os modulos correspondentes e ajustando a numeracao.
+```text
+FLUXO ATUAL (com bug):
+  1. Usuario clica no link do email (URL com #access_token=...&type=recovery)
+  2. Supabase JS SDK intercepta, consome o hash, autentica o usuario
+  3. Hash desaparece da URL
+  4. ProtectedRoute roda: hash vazio, usuario autenticado -> mostra dashboard
+  5. Formulario de nova senha NUNCA aparece
+```
 
-## 2. Upload de Imagem Funcionando no Chat Principal
+## Solucao
 
-Atualmente, o chat principal (`ChatArea.tsx`) nao possui opcao de upload de imagem. Sera adicionado:
+Detectar o evento `PASSWORD_RECOVERY` no **AuthProvider** (nivel global) e expor uma flag `isRecoveryMode`. O `ProtectedRoute` usa essa flag para redirecionar para `/auth`, onde o formulario de nova senha e exibido.
 
-- Um botao de anexo (icone de imagem/clip) ao lado do textarea de input
-- Um input file hidden que aceita imagens
-- Preview da imagem selecionada com botao de remover
-- A imagem sera exibida na bolha da mensagem do usuario
+```text
+FLUXO CORRIGIDO:
+  1. Usuario clica no link do email
+  2. Supabase consome hash, autentica, dispara evento PASSWORD_RECOVERY
+  3. useAuthSimple detecta o evento -> seta isRecoveryMode = true
+  4. ProtectedRoute ve isRecoveryMode = true -> redireciona para /auth
+  5. Auth.tsx ve isRecoveryMode -> mostra formulario de nova senha
+  6. Apos redefinir, isRecoveryMode volta a false
+```
 
-**Nota**: A imagem sera enviada como base64 para exibicao local. A IA (OpenAI) nao recebera a imagem diretamente pois o modelo `gpt-4o-mini` via edge function nao esta configurado para processar imagens - mas o usuario vera a imagem anexada na conversa.
+## Alteracoes por Arquivo
 
-## 3. Responsividade Mobile
+### 1. `src/hooks/useAuthSimple.ts`
+- Adicionar estado `isRecoveryMode` (boolean)
+- No `onAuthStateChange`, quando `event === 'PASSWORD_RECOVERY'`, setar `isRecoveryMode = true`
+- Adicionar funcao `clearRecoveryMode()` para resetar a flag
+- Expor `isRecoveryMode` e `clearRecoveryMode` na interface `AuthContextType`
 
-### Landing Page (`src/pages/Landing.tsx`)
-- Reduzir tamanho do titulo hero em telas pequenas (text-3xl em mobile)
-- Ajustar padding do header para mobile
-- Tornar botoes do header mais compactos em mobile (esconder texto "Entrar", manter icone)
-- Ajustar espacamento das secoes de features e benefits
-- Cards de features em coluna unica no mobile
+### 2. `src/components/auth/ProtectedRoute.tsx`
+- Importar `isRecoveryMode` do `useAuth()`
+- Antes da verificacao de `hasAccess`, checar se `isRecoveryMode === true`
+- Se sim, redirecionar para `/auth` (sem depender do hash)
 
-### Index Page (`src/pages/Index.tsx`)
-- A sidebar fixa de 80px no layout com conversas nao aparece corretamente em mobile - sera escondida em telas pequenas
-- Quick actions em 2 colunas no mobile (ja esta assim)
-- Ajustar padding e tamanhos de fonte para telas menores
+### 3. `src/pages/Auth.tsx`
+- Importar `isRecoveryMode` e `clearRecoveryMode` do `useAuth()`
+- Usar `isRecoveryMode` para exibir o formulario de nova senha automaticamente
+- Chamar `clearRecoveryMode()` apos a senha ser redefinida com sucesso
 
-### Suporte Page (`src/pages/Suporte.tsx`)
-- Ajustar titulo hero para telas menores
-- Melhorar espacamento dos cards de categorias em mobile
-- Floating chat window ocupar mais largura em mobile
+### 4. `src/components/auth/AuthProvider.tsx`
+- Apenas garantir que o provider repassa os novos campos (se necessario)
 
-### ChatLayout / ChatArea
-- Ja possuem boa responsividade, apenas pequenos ajustes de padding
-
-## Detalhes Tecnicos
+## Resumo
 
 | Arquivo | Acao |
 |---|---|
-| `src/pages/Suporte.tsx` | Remover modulos 12 e 13, renumerar restantes |
-| `documentacao_agente_suporte.md` | Remover modulos 12 e 13 da documentacao |
-| `src/components/chat/ChatArea.tsx` | Adicionar upload de imagem (botao, preview, exibicao) |
-| `src/pages/Landing.tsx` | Melhorar responsividade mobile (fontes, padding, layout) |
-| `src/pages/Index.tsx` | Esconder sidebar em mobile, ajustar layout |
-| `src/components/chat/ChatLayout.tsx` | Pequenos ajustes de responsividade |
+| `src/hooks/useAuthSimple.ts` | Adicionar `isRecoveryMode` + `clearRecoveryMode` |
+| `src/components/auth/ProtectedRoute.tsx` | Checar `isRecoveryMode` e redirecionar |
+| `src/pages/Auth.tsx` | Usar flag do contexto em vez de hash local |
+| `src/components/auth/AuthProvider.tsx` | Repassar novos campos do provider |
 
