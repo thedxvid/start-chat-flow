@@ -26,40 +26,19 @@ export default function Auth() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
 
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, isRecoveryMode, clearRecoveryMode } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Detectar token de recovery na URL (quando o usuário clica no link do email)
+  // Detectar recovery mode via contexto global (flag setada pelo useAuthSimple)
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      console.log('Auth event:', event);
-      if (event === 'PASSWORD_RECOVERY') {
-        setShowResetPassword(true);
-        setShowForgotPassword(false);
-        setError('');
-      }
-    });
-
-    // Verificar hash na URL para recovery (imediato + com delay para race conditions)
-    const checkHash = () => {
-      const hash = window.location.hash;
-      if (hash && hash.includes('type=recovery')) {
-        setShowResetPassword(true);
-        setShowForgotPassword(false);
-        setError('');
-      }
-    };
-
-    checkHash();
-    // Re-check após pequeno delay para cobrir redirecionamentos
-    const timer = setTimeout(checkHash, 500);
-
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timer);
-    };
-  }, []);
+    if (isRecoveryMode) {
+      console.log('Recovery mode detected via auth context');
+      setShowResetPassword(true);
+      setShowForgotPassword(false);
+      setError('');
+    }
+  }, [isRecoveryMode]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +67,8 @@ export default function Auth() {
         description: 'Sua nova senha foi salva com sucesso.',
       });
 
-      // Redirecionar após 2 segundos
+      // Limpar recovery mode e redirecionar após 2 segundos
+      clearRecoveryMode();
       setTimeout(() => {
         setShowResetPassword(false);
         setPasswordResetSuccess(false);
