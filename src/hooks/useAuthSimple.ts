@@ -13,6 +13,8 @@ interface AuthContextType {
   hasAccess: boolean;
   isAdmin: boolean;
   refreshAdminStatus: () => Promise<void>;
+  isRecoveryMode: boolean;
+  clearRecoveryMode: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,6 +33,7 @@ export const useAuthProvider = () => {
   const [loading, setLoading] = useState(true);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 
   // Admin users have access regardless of subscription
   // Regular users need subscription
@@ -41,6 +44,12 @@ export const useAuthProvider = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
+        
+        if (event === 'PASSWORD_RECOVERY') {
+          console.log('Recovery mode detected via auth event');
+          setIsRecoveryMode(true);
+        }
+        
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -206,6 +215,10 @@ export const useAuthProvider = () => {
     }
   };
 
+  const clearRecoveryMode = () => {
+    setIsRecoveryMode(false);
+  };
+
   return {
     user,
     session,
@@ -217,6 +230,8 @@ export const useAuthProvider = () => {
     hasAccess,
     isAdmin,
     refreshAdminStatus,
+    isRecoveryMode,
+    clearRecoveryMode,
   };
 };
 
