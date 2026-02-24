@@ -27,8 +27,6 @@ import {
     Calendar,
     Users,
     FileText,
-    Image as ImageIcon,
-    Paperclip,
 } from 'lucide-react';
 import { useNathiChat } from '@/hooks/useNathiChat';
 import type { Message } from '@/types/chat';
@@ -259,7 +257,6 @@ interface SupportMessage {
     content: string;
     sender: 'user' | 'ai';
     timestamp: Date;
-    image?: string;
 }
 
 const categories = [
@@ -355,9 +352,6 @@ export function Suporte() {
     const { sendMessage, isLoading } = useNathiChat();
     const [searchQuery, setSearchQuery] = useState('');
     const [chatInput, setChatInput] = useState('');
-    const [selectedImage, setSelectedImage] = useState<string | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const floatingFileInputRef = useRef<HTMLInputElement>(null);
     const [isFloatingChatOpen, setIsFloatingChatOpen] = useState(false);
     const [chatMessages, setChatMessages] = useState<SupportMessage[]>([
         {
@@ -380,73 +374,29 @@ export function Suporte() {
         }
     }, [chatMessages]);
 
-    const compressImage = (file: File, maxSize = 800, quality = 0.7): Promise<string> => {
-        return new Promise((resolve) => {
-            const img = new Image();
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    let { width, height } = img;
-                    if (width > maxSize || height > maxSize) {
-                        if (width > height) {
-                            height = Math.round((height * maxSize) / width);
-                            width = maxSize;
-                        } else {
-                            width = Math.round((width * maxSize) / height);
-                            height = maxSize;
-                        }
-                    }
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d')!;
-                    ctx.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', quality));
-                };
-                img.src = reader.result as string;
-            };
-            reader.readAsDataURL(file);
-        });
-    };
-
-    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const compressed = await compressImage(file);
-            setSelectedImage(compressed);
-        }
-    };
-
     const handleSendChat = async (overrideInput?: string) => {
         const text = overrideInput ?? chatInput;
-        if ((!text.trim() && !selectedImage) || isLoading) return;
+        if (!text.trim() || isLoading) return;
 
         const userMsg: SupportMessage = {
             id: Date.now().toString(),
             content: text.trim(),
             sender: 'user',
             timestamp: new Date(),
-            image: selectedImage || undefined
         };
 
         setChatMessages(prev => [...prev, userMsg]);
         if (!overrideInput) {
             setChatInput('');
-            setSelectedImage(null);
         }
-
-        // Reset file inputs
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        if (floatingFileInputRef.current) floatingFileInputRef.current.value = '';
 
         const history: Message[] = chatMessages.map(m => ({
             id: m.id,
             content: m.content,
             sender: m.sender,
             timestamp: m.timestamp,
-            image: m.image,
         }));
-        history.push({ id: userMsg.id, content: userMsg.content, sender: 'user', timestamp: userMsg.timestamp, image: userMsg.image });
+        history.push({ id: userMsg.id, content: userMsg.content, sender: 'user', timestamp: userMsg.timestamp });
 
         const aiResponse = await sendMessage(history, 'suporte');
         if (aiResponse) {
@@ -704,13 +654,6 @@ export function Suporte() {
                                             : 'bg-muted/60 text-foreground rounded-bl-md'
                                             }`}
                                     >
-                                        {msg.image && (
-                                            <img
-                                                src={msg.image}
-                                                alt="Upload do usuário"
-                                                className="max-w-full rounded-lg mb-2 max-h-[200px] object-cover"
-                                            />
-                                        )}
                                         {msg.sender === 'ai' ? (
                                             <div className="leading-relaxed">{formatMessage(msg.content)}</div>
                                         ) : (
@@ -741,59 +684,28 @@ export function Suporte() {
 
                         {/* Input */}
                         <div className="p-3 sm:p-4 border-t border-border/50 bg-slate-50/50">
-                            <div className="flex flex-col gap-2">
-                                {selectedImage && (
-                                    <div className="relative inline-block self-start">
-                                        <img src={selectedImage} alt="Preview" className="h-20 w-auto rounded-lg border border-border" />
-                                        <button
-                                            onClick={() => {
-                                                setSelectedImage(null);
-                                                if (fileInputRef.current) fileInputRef.current.value = '';
-                                            }}
-                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 shadow-sm hover:bg-red-600"
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </button>
-                                    </div>
-                                )}
-                                <div className="flex gap-2 items-end">
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        ref={fileInputRef}
-                                        onChange={handleImageUpload}
-                                    />
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-[42px] w-[42px] rounded-xl p-0 flex-shrink-0 text-slate-400 hover:text-gold hover:border-gold/50"
-                                        onClick={() => fileInputRef.current?.click()}
-                                    >
-                                        <ImageIcon className="h-5 w-5" />
-                                    </Button>
-                                    <Textarea
-                                        value={chatInput}
-                                        onChange={e => setChatInput(e.target.value)}
-                                        onKeyDown={handleKeyDown}
-                                        placeholder="Digite sua dúvida aqui..."
-                                        rows={1}
-                                        disabled={isLoading}
-                                        className="flex-1 resize-none min-h-[42px] max-h-[100px] text-sm rounded-xl border-border/50 bg-white text-foreground placeholder:text-slate-400 focus:border-gold/50 focus:ring-0 shadow-sm"
-                                    />
-                                    <Button
-                                        onClick={() => handleSendChat()}
-                                        disabled={(!chatInput.trim() && !selectedImage) || isLoading}
-                                        size="sm"
-                                        className="h-[42px] w-[42px] rounded-xl p-0 flex-shrink-0 shadow-md transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 active:scale-95"
-                                        style={{
-                                            background: (chatInput.trim() || selectedImage) && !isLoading ? 'var(--gradient-gold-shine)' : '#f3f4f6',
-                                            color: (chatInput.trim() || selectedImage) && !isLoading ? 'hsl(var(--gold-foreground))' : '#9ca3af',
-                                        }}
-                                    >
-                                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                                    </Button>
-                                </div>
+                            <div className="flex gap-2 items-end">
+                                <Textarea
+                                    value={chatInput}
+                                    onChange={e => setChatInput(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder="Digite sua dúvida aqui..."
+                                    rows={1}
+                                    disabled={isLoading}
+                                    className="flex-1 resize-none min-h-[42px] max-h-[100px] text-sm rounded-xl border-border/50 bg-white text-foreground placeholder:text-slate-400 focus:border-gold/50 focus:ring-0 shadow-sm"
+                                />
+                                <Button
+                                    onClick={() => handleSendChat()}
+                                    disabled={!chatInput.trim() || isLoading}
+                                    size="sm"
+                                    className="h-[42px] w-[42px] rounded-xl p-0 flex-shrink-0 shadow-md transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 active:scale-95"
+                                    style={{
+                                        background: chatInput.trim() && !isLoading ? 'var(--gradient-gold-shine)' : '#f3f4f6',
+                                        color: chatInput.trim() && !isLoading ? 'hsl(var(--gold-foreground))' : '#9ca3af',
+                                    }}
+                                >
+                                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                </Button>
                             </div>
                         </div>
                     </div>
@@ -897,13 +809,6 @@ export function Suporte() {
                                             : 'bg-white border border-border/50 text-foreground rounded-bl-md shadow-sm'
                                             }`}
                                     >
-                                        {msg.image && (
-                                            <img
-                                                src={msg.image}
-                                                alt="Upload do usuário"
-                                                className="max-w-full rounded-lg mb-2 max-h-[200px] object-cover"
-                                            />
-                                        )}
                                         {msg.sender === 'ai' ? (
                                             <div className="leading-relaxed">{formatMessage(msg.content)}</div>
                                         ) : (
@@ -931,34 +836,7 @@ export function Suporte() {
 
                         {/* Input Area */}
                         <div className="p-3 bg-white border-t border-border/50">
-                            {selectedImage && (
-                                <div className="relative inline-block mb-2">
-                                    <img src={selectedImage} alt="Preview" className="h-16 w-auto rounded-lg border border-border" />
-                                    <button
-                                        onClick={() => {
-                                            setSelectedImage(null);
-                                            if (floatingFileInputRef.current) floatingFileInputRef.current.value = '';
-                                        }}
-                                        className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 shadow-sm hover:bg-red-600"
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </button>
-                                </div>
-                            )}
                             <div className="flex gap-2 items-center">
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    ref={floatingFileInputRef}
-                                    onChange={handleImageUpload}
-                                />
-                                <button
-                                    className="h-10 w-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-gold hover:bg-slate-50 transition-colors"
-                                    onClick={() => floatingFileInputRef.current?.click()}
-                                >
-                                    <Paperclip className="h-5 w-5" />
-                                </button>
                                 <input
                                     value={chatInput}
                                     onChange={e => setChatInput(e.target.value)}
@@ -969,11 +847,11 @@ export function Suporte() {
                                 />
                                 <button
                                     onClick={() => handleSendChat()}
-                                    disabled={(!chatInput.trim() && !selectedImage) || isLoading}
+                                    disabled={!chatInput.trim() || isLoading}
                                     className="h-10 w-10 rounded-xl flex items-center justify-center shadow-sm disabled:opacity-50 disabled:grayscale transition-all active:scale-95"
                                     style={{
-                                        background: (chatInput.trim() || selectedImage) && !isLoading ? 'var(--gradient-gold-shine)' : '#f3f4f6',
-                                        color: (chatInput.trim() || selectedImage) && !isLoading ? 'hsl(var(--gold-foreground))' : '#9ca3af',
+                                        background: chatInput.trim() && !isLoading ? 'var(--gradient-gold-shine)' : '#f3f4f6',
+                                        color: chatInput.trim() && !isLoading ? 'hsl(var(--gold-foreground))' : '#9ca3af',
                                     }}
                                 >
                                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

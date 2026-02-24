@@ -388,20 +388,6 @@ serve(async (req) => {
       },
       ...messages.map((msg: any) => {
         const role = msg.sender === 'user' ? 'user' : 'assistant';
-        
-        // Se a mensagem tem imagem e é do usuário, usa formato multimodal
-        if (msg.image && role === 'user') {
-          const content: any[] = [];
-          if (msg.content) {
-            content.push({ type: 'text', text: msg.content });
-          }
-          content.push({
-            type: 'image_url',
-            image_url: { url: msg.image, detail: 'auto' }
-          });
-          return { role, content };
-        }
-        
         return { role, content: msg.content };
       })
     ];
