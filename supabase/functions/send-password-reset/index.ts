@@ -13,7 +13,7 @@ serve(async (req) => {
     }
 
     try {
-        const { email, redirectTo } = await req.json();
+        const { email } = await req.json();
 
         if (!email) {
             return new Response(JSON.stringify({ error: 'Email é obrigatório' }), {
@@ -34,13 +34,17 @@ serve(async (req) => {
             });
         }
 
+        // Segurança: nunca confiar em redirectTo vindo do cliente
+        // O link sempre aponta para a rota oficial de recuperação
+        const safeRedirectTo = `${SITE_URL}/auth`;
+
         // Gerar o link de reset via Supabase Admin
         const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
         const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
             type: 'recovery',
             email,
             options: {
-                redirectTo: redirectTo || `${SITE_URL}/auth`,
+                redirectTo: safeRedirectTo,
             },
         });
 

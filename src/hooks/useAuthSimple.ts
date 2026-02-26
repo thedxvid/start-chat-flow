@@ -40,19 +40,29 @@ export const useAuthProvider = () => {
   const hasAccess = isAdmin || (user?.email === 'davicastrowp@gmail.com') || isSubscribed;
 
   useEffect(() => {
+    // Fallback inicial: se a URL ainda contém marcador de recovery, ativa o modo imediatamente
+    const initialUrl = `${window.location.search}${window.location.hash}`;
+    if (initialUrl.includes('type=recovery')) {
+      setIsRecoveryMode(true);
+    }
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
-        
+
         if (event === 'PASSWORD_RECOVERY') {
           console.log('Recovery mode detected via auth event');
           setIsRecoveryMode(true);
         }
-        
+
+        if (event === 'SIGNED_OUT') {
+          setIsRecoveryMode(false);
+        }
+
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         // Check subscription status when user changes
         if (session?.user) {
           setTimeout(async () => {
@@ -63,7 +73,7 @@ export const useAuthProvider = () => {
           setIsSubscribed(false);
           setIsAdmin(false);
         }
-        
+
         setLoading(false);
       }
     );
