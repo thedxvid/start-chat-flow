@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuthSimple';
-import { sendWelcomeEmail, sendAdminNotification } from '@/lib/resend';
+
 
 interface UserWithProfile {
   id: string;
@@ -84,13 +84,6 @@ export function useAdmin() {
       }
 
       await fetchUsers();
-
-      // Notificar admin sobre nova promoção
-      await sendAdminNotification('Usuário promovido a admin', {
-        promotedEmail: email,
-        promotedBy: user?.email,
-        timestamp: new Date().toISOString()
-      });
 
       return { success: true };
     } catch (error) {
@@ -194,16 +187,6 @@ export function useAdmin() {
         throw error;
       }
 
-      // Notificar admin sobre exclusão de usuário
-      await sendAdminNotification('Usuário excluído', {
-        deletedUser: {
-          id: userId,
-          email: userEmail
-        },
-        deletedBy: user?.email,
-        timestamp: new Date().toISOString()
-      });
-
       await fetchUsers();
       return { success: true };
     } catch (error) {
@@ -242,17 +225,6 @@ export function useAdmin() {
             expires_at: expirationDate.toISOString()
           });
       }
-
-      // Notificar admin sobre mudança de assinatura
-      await sendAdminNotification('Assinatura atualizada', {
-        user: {
-          id: userId,
-          email: userEmail
-        },
-        newPlan: planType,
-        updatedBy: user?.email,
-        timestamp: new Date().toISOString()
-      });
 
       await fetchUsers();
       return { success: true };
@@ -367,19 +339,13 @@ export function useAdmin() {
   // Função para reenviar email de boas-vindas
   const resendWelcomeEmail = async (email: string, fullName: string) => {
     try {
-      const result = await sendWelcomeEmail(email, fullName);
-
-      if (result.success) {
-        // Notificar admin sobre reenvio
-        await sendAdminNotification('Email de boas-vindas reenviado', {
-          recipient: email,
-          resentBy: user?.email,
-          timestamp: new Date().toISOString()
-        });
-      }
-
-      return result;
-    } catch (error) {
+      const { data, error } = await supabase.functions.invoke('send-user-credentials', {
+        body: { email, fullName, tempPassword: '', mode: 'resend' }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return { success: true };
+    } catch (error: any) {
       console.error('Error resending welcome email:', error);
       return { success: false, error: error.message };
     }
