@@ -63,12 +63,9 @@ export const useAuthProvider = () => {
         setSession(session);
         setUser(session?.user ?? null);
 
-        // Check subscription status when user changes
         if (session?.user) {
-          setTimeout(async () => {
-            await checkSubscriptionStatus(session.user.id);
-            await checkAdminStatus(session.user.id);
-          }, 100);
+          await checkSubscriptionStatus(session.user.id);
+          await checkAdminStatus(session.user.id);
         } else {
           setIsSubscribed(false);
           setIsAdmin(false);
@@ -85,13 +82,15 @@ export const useAuthProvider = () => {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        setTimeout(async () => {
-          await checkSubscriptionStatus(session.user.id);
-          await checkAdminStatus(session.user.id);
-        }, 100);
+        Promise.all([
+          checkSubscriptionStatus(session.user.id),
+          checkAdminStatus(session.user.id)
+        ]).finally(() => {
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
       }
-      
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
