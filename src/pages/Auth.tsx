@@ -30,10 +30,13 @@ export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Detectar recovery mode via contexto global (flag setada pelo useAuthSimple)
+  // Detectar recovery mode via contexto global e fallback por URL
   useEffect(() => {
-    if (isRecoveryMode) {
-      console.log('Recovery mode detected via auth context');
+    const urlPayload = `${window.location.search}${window.location.hash}`;
+    const recoveryFromUrl = urlPayload.includes('type=recovery');
+
+    if (isRecoveryMode || recoveryFromUrl) {
+      console.log('Recovery mode detected', { isRecoveryMode, recoveryFromUrl });
       setShowResetPassword(true);
       setShowForgotPassword(false);
       setError('');
