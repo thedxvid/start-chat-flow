@@ -457,6 +457,8 @@ export function useAdmin() {
       for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
       const newPassword = 'START-' + code;
 
+      console.log('📤 Reenviando credenciais para:', email);
+
       const { data, error } = await supabase.functions.invoke('send-user-credentials', {
         body: {
           email,
@@ -468,8 +470,25 @@ export function useAdmin() {
         }
       });
 
+      console.log('📥 Resposta da função:', { data, error });
+
+      // supabase.functions.invoke retorna error para non-2xx mas a função
+      // pode retornar success:true no body mesmo com warning
       if (error) {
-        throw new Error(error.message);
+        // Tentar extrair dados do contexto do erro
+        const errorMsg = typeof error === 'object' && error.message ? error.message : String(error);
+        console.warn('⚠️ Edge function retornou erro mas pode ter funcionado:', errorMsg);
+        
+        // Se o erro é apenas "non-2xx" mas temos data com success, considerar sucesso
+        if (data?.success) {
+          return {
+            success: true,
+            message: `Nova senha enviada para ${email}${data.warning ? ' (com aviso)' : ''}`,
+            tempPassword: newPassword
+          };
+        }
+        
+        throw new Error(errorMsg);
       }
 
       if (data?.error) {
@@ -482,8 +501,8 @@ export function useAdmin() {
         tempPassword: newPassword
       };
     } catch (error: any) {
-      console.error('Erro ao reenviar credenciais:', error);
-      return { success: false, error: error.message };
+      console.error('❌ Erro ao reenviar credenciais:', error);
+      return { success: false, error: error.message || 'Erro ao reenviar credenciais' };
     }
   };
 
