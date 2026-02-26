@@ -63,15 +63,19 @@ export const useAuthProvider = () => {
         setSession(session);
         setUser(session?.user ?? null);
 
-        if (session?.user) {
-          await checkSubscriptionStatus(session.user.id);
-          await checkAdminStatus(session.user.id);
-        } else {
-          setIsSubscribed(false);
-          setIsAdmin(false);
+        try {
+          if (session?.user) {
+            await checkSubscriptionStatus(session.user.id);
+            await checkAdminStatus(session.user.id);
+          } else {
+            setIsSubscribed(false);
+            setIsAdmin(false);
+          }
+        } catch (e) {
+          console.error('Erro ao verificar acesso:', e);
+        } finally {
+          setLoading(false);
         }
-
-        setLoading(false);
       }
     );
 
