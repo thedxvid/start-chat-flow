@@ -70,14 +70,15 @@ export default function Auth() {
         description: 'Sua nova senha foi salva com sucesso.',
       });
 
-      // Limpar recovery mode, fazer logout e redirecionar para login
+      // Limpar recovery mode, invalidar sessão temporária de recovery e voltar para /auth
       clearRecoveryMode();
       await supabase.auth.signOut();
+      window.history.replaceState({}, document.title, '/auth');
       setTimeout(() => {
         setShowResetPassword(false);
         setPasswordResetSuccess(false);
-        // Redirecionar para /auth (login) em vez de / (protegida)
-      }, 2000);
+        navigate('/auth', { replace: true });
+      }, 1200);
     } catch (err: any) {
       setError(err.message || 'Erro ao redefinir senha.');
       toast({
