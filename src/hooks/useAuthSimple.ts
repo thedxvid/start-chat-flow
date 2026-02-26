@@ -46,9 +46,23 @@ export const useAuthProvider = () => {
       setIsRecoveryMode(true);
     }
 
-    // Set up auth state listener
+    // Safety timeout: force loading=false after 8s no matter what
+    const safetyTimeout = setTimeout(() => {
+      setLoading(prev => {
+        if (prev) {
+          console.warn('Safety timeout: forcing loading=false');
+          setIsSubscribed(true); // fallback: grant access
+          return false;
+        }
+        return prev;
+      });
+    }, 8000);
+
+    let initialSessionHandled = false;
+
+    // Set up auth state listener - MUST NOT await inside callback
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
 
         if (event === 'PASSWORD_RECOVERY') {
@@ -58,22 +72,32 @@ export const useAuthProvider = () => {
 
         if (event === 'SIGNED_OUT') {
           setIsRecoveryMode(false);
+          setIsSubscribed(false);
+          setIsAdmin(false);
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
         }
 
         setSession(session);
         setUser(session?.user ?? null);
 
-        try {
-          if (session?.user) {
-            await checkSubscriptionStatus(session.user.id);
-            await checkAdminStatus(session.user.id);
-          } else {
-            setIsSubscribed(false);
-            setIsAdmin(false);
-          }
-        } catch (e) {
-          console.error('Erro ao verificar acesso:', e);
-        } finally {
+        if (session?.user) {
+          // Non-blocking: fire and forget, with safety
+          const userId = session.user.id;
+          setTimeout(() => {
+            Promise.all([
+              checkSubscriptionStatus(userId),
+              checkAdminStatus(userId)
+            ]).catch(e => {
+              console.error('Erro ao verificar acesso:', e);
+              setIsSubscribed(true); // fallback
+            }).finally(() => {
+              setLoading(false);
+            });
+          }, 0);
+        } else {
           setLoading(false);
         }
       }
@@ -81,23 +105,24 @@ export const useAuthProvider = () => {
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (initialSessionHandled) return;
+      initialSessionHandled = true;
       console.log('Initial session:', session?.user?.email);
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        Promise.all([
-          checkSubscriptionStatus(session.user.id),
-          checkAdminStatus(session.user.id)
-        ]).finally(() => {
-          setLoading(false);
-        });
-      } else {
+
+      if (!session?.user) {
+        setSession(null);
+        setUser(null);
         setLoading(false);
       }
+      // If there IS a session, onAuthStateChange will handle it
+    }).catch(() => {
+      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(safetyTimeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const checkSubscriptionStatus = async (userId: string) => {
