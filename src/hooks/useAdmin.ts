@@ -104,18 +104,44 @@ export function useAdmin() {
 
       console.log('📤 Chamando Edge Function send-user-credentials...');
 
-      // Criar usuário diretamente via Edge Function
-      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-user-credentials', {
-        body: {
-          email: userData.email,
-          fullName: userData.fullName,
-          tempPassword: tempPassword,
-          role: userData.role || 'user',
-          planType: userData.planType || 'premium'
-        }
-      });
+      // Usar fetch direto com timeout para evitar hang infinito
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-      console.log('📨 Resposta da Edge Function:', { emailData, emailError });
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token || '';
+
+      let fetchRes: Response;
+      try {
+        fetchRes = await fetch('https://wpqthkvidfmjyroaijiq.supabase.co/functions/v1/send-user-credentials', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndwcXRoa3ZpZGZtanlyb2FpamlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI5NTk2MzQsImV4cCI6MjA2ODUzNTYzNH0.3HdTw587IUP-Y-QR59qMuijAzlqk9ifiZq_bP14hcjc',
+          },
+          body: JSON.stringify({
+            email: userData.email,
+            fullName: userData.fullName,
+            tempPassword: tempPassword,
+            role: userData.role || 'user',
+            planType: userData.planType || 'premium'
+          }),
+          signal: controller.signal,
+        });
+      } catch (fetchErr: any) {
+        clearTimeout(timeoutId);
+        if (fetchErr.name === 'AbortError') {
+          throw new Error('Tempo limite excedido ao criar usuário. Verifique se a Edge Function está ativa.');
+        }
+        throw new Error(`Erro de rede ao chamar Edge Function: ${fetchErr.message}`);
+      }
+      clearTimeout(timeoutId);
+
+      const emailData = await fetchRes.json().catch(() => null);
+      const emailError = fetchRes.ok ? null : { message: `HTTP ${fetchRes.status}: ${emailData?.error || 'Erro desconhecido'}` };
+
+      console.log('📨 Resposta da Edge Function:', { emailData, emailError, status: fetchRes.status });
 
       // Parse response if it came back as string
       let parsedData = emailData;
