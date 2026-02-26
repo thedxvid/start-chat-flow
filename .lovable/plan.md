@@ -1,61 +1,65 @@
 
 
-# Plano: Corrigir Redirecionamento de Recuperacao de Senha
+# Corrigir Criacao de Usuarios no Painel Admin
 
-## Problema Raiz
+## Problemas Identificados
 
-Quando o usuario clica no link de recuperacao no email, o Supabase **consome o hash** (`#type=recovery`) durante o processamento do token e autentica o usuario automaticamente. Depois disso, o hash desaparece da URL. Entao quando o `ProtectedRoute` verifica `window.location.hash`, ele nao encontra mais `type=recovery` -- o usuario ja esta autenticado e e enviado direto para o dashboard.
+### Problema 1: Edge Function retornando 500
+A screenshot mostra que a Edge Function `send-user-credentials` retorna status 500. A funcao verifica se `RESEND_API_KEY` existe nas variaveis de ambiente do Supabase (linha 30-33). Se estiver ausente, retorna 500 com "Config incompleta". E necessario confirmar que esse secret esta configurado no Supabase Dashboard.
 
-```text
-FLUXO ATUAL (com bug):
-  1. Usuario clica no link do email (URL com #access_token=...&type=recovery)
-  2. Supabase JS SDK intercepta, consome o hash, autentica o usuario
-  3. Hash desaparece da URL
-  4. ProtectedRoute roda: hash vazio, usuario autenticado -> mostra dashboard
-  5. Formulario de nova senha NUNCA aparece
-```
+### Problema 2: Uso do Resend SDK no lado do cliente (browser)
+O arquivo `src/lib/resend.ts` importa o pacote `resend` (SDK Node.js) e tenta usa-lo diretamente no browser. Isso NUNCA funciona -- o Resend SDK so opera server-side. O `useAdmin.ts` importa `sendAdminNotification` e `sendWelcomeEmail` desse arquivo, o que causa erros silenciosos ou quebra o fluxo.
+
+Alem disso, a chave da API Resend esta **hardcoded** no codigo client-side (`re_PwMwDDDC_...`), o que e uma vulnerabilidade de seguranca grave.
+
+### Problema 3: Falhas silenciosas bloqueiam o fluxo
+Mesmo que a Edge Function funcione, chamadas subsequentes a `sendAdminNotification` (client-side Resend) podem lancar excecoes que interrompem o fluxo.
 
 ## Solucao
 
-Detectar o evento `PASSWORD_RECOVERY` no **AuthProvider** (nivel global) e expor uma flag `isRecoveryMode`. O `ProtectedRoute` usa essa flag para redirecionar para `/auth`, onde o formulario de nova senha e exibido.
+### 1. Remover uso client-side do Resend SDK em `useAdmin.ts`
+- Remover imports de `sendWelcomeEmail` e `sendAdminNotification` de `src/lib/resend.ts`
+- Essas notificacoes ja sao tratadas pela Edge Function (que envia o email)
+- As chamadas a `sendAdminNotification` no `useAdmin.ts` sao opcionais e podem ser simplesmente removidas (ou movidas para uma Edge Function separada no futuro)
 
-```text
-FLUXO CORRIGIDO:
-  1. Usuario clica no link do email
-  2. Supabase consome hash, autentica, dispara evento PASSWORD_RECOVERY
-  3. useAuthSimple detecta o evento -> seta isRecoveryMode = true
-  4. ProtectedRoute ve isRecoveryMode = true -> redireciona para /auth
-  5. Auth.tsx ve isRecoveryMode -> mostra formulario de nova senha
-  6. Apos redefinir, isRecoveryMode volta a false
-```
+### 2. Tornar `createUser` mais resiliente em `useAdmin.ts`
+- Remover chamadas client-side ao Resend que podem falhar
+- Melhorar tratamento de erros para mostrar mensagens claras ao admin
+- Logar a resposta completa da Edge Function para debug
+
+### 3. Remover ou limpar `src/lib/resend.ts`
+- Remover a chave API hardcoded (vulnerabilidade de seguranca)
+- Manter o arquivo apenas como referencia de templates, ou remove-lo se nao for usado em outro lugar
+
+### 4. Verificar secret RESEND_API_KEY no Supabase
+- Orientar o usuario a confirmar que `RESEND_API_KEY` esta definida nos Supabase Secrets (Dashboard > Settings > Edge Functions > Secrets)
 
 ## Alteracoes por Arquivo
 
-### 1. `src/hooks/useAuthSimple.ts`
-- Adicionar estado `isRecoveryMode` (boolean)
-- No `onAuthStateChange`, quando `event === 'PASSWORD_RECOVERY'`, setar `isRecoveryMode = true`
-- Adicionar funcao `clearRecoveryMode()` para resetar a flag
-- Expor `isRecoveryMode` e `clearRecoveryMode` na interface `AuthContextType`
-
-### 2. `src/components/auth/ProtectedRoute.tsx`
-- Importar `isRecoveryMode` do `useAuth()`
-- Antes da verificacao de `hasAccess`, checar se `isRecoveryMode === true`
-- Se sim, redirecionar para `/auth` (sem depender do hash)
-
-### 3. `src/pages/Auth.tsx`
-- Importar `isRecoveryMode` e `clearRecoveryMode` do `useAuth()`
-- Usar `isRecoveryMode` para exibir o formulario de nova senha automaticamente
-- Chamar `clearRecoveryMode()` apos a senha ser redefinida com sucesso
-
-### 4. `src/components/auth/AuthProvider.tsx`
-- Apenas garantir que o provider repassa os novos campos (se necessario)
-
-## Resumo
-
 | Arquivo | Acao |
 |---|---|
-| `src/hooks/useAuthSimple.ts` | Adicionar `isRecoveryMode` + `clearRecoveryMode` |
-| `src/components/auth/ProtectedRoute.tsx` | Checar `isRecoveryMode` e redirecionar |
-| `src/pages/Auth.tsx` | Usar flag do contexto em vez de hash local |
-| `src/components/auth/AuthProvider.tsx` | Repassar novos campos do provider |
+| `src/hooks/useAdmin.ts` | Remover imports do Resend SDK; remover chamadas a `sendAdminNotification`/`sendWelcomeEmail`; simplificar `createUser`, `makeUserAdmin`, `deleteUser`, `updateUserSubscription`, `resendWelcomeEmail` |
+| `src/lib/resend.ts` | Remover chave API hardcoded e uso do SDK client-side |
+
+## Secao Tecnica
+
+O `createUser` atualmente faz:
+1. Gera senha temporaria
+2. Chama Edge Function `send-user-credentials` (que cria o usuario E envia o email)
+3. Depois chama `sendAdminNotification` via Resend SDK client-side (FALHA)
+
+O fluxo corrigido sera:
+1. Gera senha temporaria
+2. Chama Edge Function `send-user-credentials`
+3. Retorna resultado (sem tentativa de enviar email pelo browser)
+
+A Edge Function ja cuida de todo o fluxo (criar usuario + enviar email), entao nao ha necessidade de duplicar a logica no client.
+
+## Acao Manual Necessaria
+
+Voce precisara verificar no Supabase Dashboard se o secret `RESEND_API_KEY` esta configurado:
+1. Acesse supabase.com/dashboard
+2. Va para o projeto `wpqthkvidfmjyroaijiq`
+3. Settings > Edge Functions > Secrets
+4. Confirme que `RESEND_API_KEY` existe com um valor valido
 
