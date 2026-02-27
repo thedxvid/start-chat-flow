@@ -26,7 +26,7 @@ Deno.serve(async (req: Request) => {
     const planType = ['free', 'premium', 'pro'].includes(rawPlan) ? rawPlan : 'premium';
     const mode = String(body.mode || 'create').trim();
 
-    console.log("🚀 resend-credentials v10 |", email, "| modo:", mode, "| plano:", planType);
+    console.log("🚀 resend-credentials v11 |", email, "| modo:", mode, "| plano:", planType);
 
     if (!email || !tempPassword) {
       return new Response(JSON.stringify({ error: 'Campos obrigatórios faltando (email e tempPassword)' }), { status: 400, headers });
@@ -338,7 +338,7 @@ Deno.serve(async (req: Request) => {
         return new Response(JSON.stringify({ success: true, userId, warning: 'Email falhou mas credenciais atualizadas' }), { status: 200, headers });
       }
 
-      console.log("✅ resend-credentials v9 OK:", email, userId, emailData.id);
+      console.log("✅ resend-credentials v11 OK:", email, userId, emailData.id);
       return new Response(JSON.stringify({ success: true, userId, emailId: emailData.id }), { status: 200, headers });
     } catch (e) {
       console.error("⚠️ Erro ao enviar email (retornando sucesso parcial):", e);
@@ -347,7 +347,7 @@ Deno.serve(async (req: Request) => {
 
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error("💥 resend-credentials v10 erro fatal:", msg);
+    console.error("💥 resend-credentials v11 erro fatal:", msg);
     return new Response(JSON.stringify({ error: 'Erro interno', details: msg }), { status: 500, headers });
   }
 });
