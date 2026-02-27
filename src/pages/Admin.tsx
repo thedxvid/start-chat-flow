@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/hooks/useAdmin';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +28,7 @@ import {
   Plus,
   Trash2,
   Edit,
+  RefreshCw,
   DollarSign,
   Activity,
   BarChart3,
@@ -67,6 +69,7 @@ export function Admin() {
   const [bulkImportResults, setBulkImportResults] = useState<Array<{ email: string; success: boolean; error?: string }> | null>(null);
   const [bulkImportProgress, setBulkImportProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [resendingUserId, setResendingUserId] = useState<string | null>(null);
 
 
   // Form state for creating new user
@@ -171,6 +174,38 @@ export function Admin() {
       toast.success("Assinatura atualizada com sucesso");
     } else {
       toast.error(result.error || "Falha ao atualizar assinatura");
+    }
+  };
+
+  const handleResendAccess = async (userId: string, email: string, fullName?: string) => {
+    setResendingUserId(userId);
+    try {
+      const { data, error } = await supabase.functions.invoke('resend-user-credentials', {
+        body: { email, fullName: fullName || '' }
+      });
+
+      if (error) {
+        // Tentar extrair mensagem de erro mais detalhada
+        let errorMsg = error.message;
+        try {
+          if ((error as any).context) {
+            const body = await (error as any).context.json();
+            if (body?.error) errorMsg = body.error;
+          }
+        } catch (_) { }
+        toast.error(`Erro ao reenviar: ${errorMsg}`);
+        return;
+      }
+
+      if (data?.warning) {
+        toast.warning(`Acesso reenviado com aviso: ${data.warning}`);
+      } else {
+        toast.success(`Novas credenciais enviadas para ${email}`);
+      }
+    } catch (err: any) {
+      toast.error(`Erro inesperado: ${err.message}`);
+    } finally {
+      setResendingUserId(null);
     }
   };
 
@@ -625,6 +660,22 @@ export function Admin() {
                                 <option value="inactive">Inativo</option>
                                 <option value="pending">Pendente</option>
                               </select>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-2 text-xs gap-1"
+                                onClick={() => handleResendAccess(user.id, user.email, user.profile?.full_name)}
+                                disabled={resendingUserId === user.id}
+                                title="Reenviar credenciais de acesso"
+                              >
+                                {resendingUserId === user.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="h-3 w-3" />
+                                )}
+                                Reenviar
+                              </Button>
 
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>

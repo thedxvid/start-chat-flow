@@ -135,12 +135,27 @@ export function useAdmin() {
       if (emailError) {
         console.error('❌ Erro detalhado da Edge Function:', emailError);
 
-        // Tratamento específico para erro 409 (conflito - usuário já existe)
-        if (emailError.message?.includes('409') || emailError.message?.includes('Conflict')) {
-          throw new Error(`Email ${userData.email} já está registrado no sistema`);
+        // Tentar extrair mensagem do corpo se for um FunctionsHttpError
+        let errorMsg = emailError.message;
+        try {
+          if (emailError instanceof Error && 'context' in emailError) {
+            const context = (emailError as any).context;
+            if (context && typeof context.json === 'function') {
+              const errorBody = await context.json();
+              if (errorBody && errorBody.error) errorMsg = errorBody.error;
+              if (errorBody && errorBody.details) console.error('🔍 Detalhes do erro:', errorBody.details);
+            }
+          }
+        } catch (e) {
+          console.error('Erro ao ler corpo do erro:', e);
         }
 
-        throw new Error(`Erro ao criar usuário: ${emailError.message}`);
+        // Tratamento específico para erro 409 (conflito - usuário já existe)
+        if (errorMsg.includes('409') || errorMsg.includes('já existe') || errorMsg.includes('already registered')) {
+          throw new Error(`O e-mail ${userData.email} já está registrado ou em processo de limpeza. Tente novamente em instantes.`);
+        }
+
+        throw new Error(`Erro: ${errorMsg}`);
       }
 
       // Verificar se a resposta existe
