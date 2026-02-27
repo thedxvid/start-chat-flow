@@ -11,18 +11,25 @@ Deno.serve(async (req: Request) => {
   const headers = { ...corsHeaders, 'Content-Type': 'application/json' };
 
   try {
-    const body = await req.json();
-    const email: string = body.email;
-    const fullName: string = body.fullName;
-    const tempPassword: string = body.tempPassword;
-    const role: string = body.role || 'user';
-    const planType: string = body.planType || 'premium';
-    const mode: string = body.mode || 'create';
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch (_e) {
+      return new Response(JSON.stringify({ error: 'JSON inválido no body' }), { status: 400, headers });
+    }
 
-    console.log("🚀 send-user-credentials v9 |", email, "| modo:", mode);
+    const email = String(body.email || '').trim().toLowerCase();
+    const fullName = String(body.fullName || '').trim() || 'Usuário';
+    const tempPassword = String(body.tempPassword || '').trim();
+    const role = String(body.role || 'user').trim();
+    const rawPlan = String(body.planType || 'premium').trim().toLowerCase();
+    const planType = ['free', 'premium', 'pro'].includes(rawPlan) ? rawPlan : 'premium';
+    const mode = String(body.mode || 'create').trim();
 
-    if (!email || !fullName || !tempPassword) {
-      return new Response(JSON.stringify({ error: 'Campos obrigatórios faltando' }), { status: 400, headers });
+    console.log("🚀 send-user-credentials v10 |", email, "| modo:", mode, "| plano:", planType);
+
+    if (!email || !tempPassword) {
+      return new Response(JSON.stringify({ error: 'Campos obrigatórios faltando (email e tempPassword)' }), { status: 400, headers });
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
@@ -341,7 +348,7 @@ Deno.serve(async (req: Request) => {
 
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error("💥 send-user-credentials v7 erro fatal:", msg);
+    console.error("💥 send-user-credentials v10 erro fatal:", msg);
     return new Response(JSON.stringify({ error: 'Erro interno', details: msg }), { status: 500, headers });
   }
 });
