@@ -479,6 +479,7 @@ export function useAdmin() {
   };
 
   // Função para reenviar acesso (resetar senha e enviar novo email)
+  // Usa fetch direto com timeout + fallback automático para resend-credentials
   const resetUserCredentials = async (email: string, fullName: string, planType?: string) => {
     try {
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -486,52 +487,83 @@ export function useAdmin() {
       for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
       const newPassword = 'START-' + code;
 
-      console.log('📤 Reenviando credenciais para:', email);
+      // Normalizar inputs
+      const safeName = (fullName || '').trim() || 'Usuário';
+      const safePlan = ['free', 'premium', 'pro'].includes(planType || '') ? planType! : 'premium';
 
-      const { data, error } = await supabase.functions.invoke('send-user-credentials', {
-        body: {
-          email,
-          fullName,
-          tempPassword: newPassword,
-          role: 'user',
-          planType: planType || 'premium',
-          mode: 'reset'
-        }
+      console.log('📤 Reenviando credenciais para:', email, '| nome:', safeName, '| plano:', safePlan);
+
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token || '';
+      const SUPABASE_URL = 'https://wpqthkvidfmjyroaijiq.supabase.co';
+      const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndwcXRoa3ZpZGZtanlyb2FpamlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI5NTk2MzQsImV4cCI6MjA2ODUzNTYzNH0.3HdTw587IUP-Y-QR59qMuijAzlqk9ifiZq_bP14hcjc';
+
+      const payload = JSON.stringify({
+        email,
+        fullName: safeName,
+        tempPassword: newPassword,
+        role: 'user',
+        planType: safePlan,
+        mode: 'reset'
       });
 
-      console.log('📥 Resposta da função:', { data, error });
-
-      // supabase.functions.invoke retorna error para non-2xx mas a função
-      // pode retornar success:true no body mesmo com warning
-      if (error) {
-        // Tentar extrair dados do contexto do erro
-        const errorMsg = typeof error === 'object' && error.message ? error.message : String(error);
-        console.warn('⚠️ Edge function retornou erro mas pode ter funcionado:', errorMsg);
-        
-        // Se o erro é apenas "non-2xx" mas temos data com success, considerar sucesso
-        if (data?.success) {
-          return {
-            success: true,
-            message: `Nova senha enviada para ${email}${data.warning ? ' (com aviso)' : ''}`,
-            tempPassword: newPassword
-          };
-        }
-        
-        throw new Error(errorMsg);
-      }
-
-      if (data?.error) {
-        throw new Error(data.error);
-      }
-
-      return {
-        success: true,
-        message: `Nova senha enviada para ${email}`,
-        tempPassword: newPassword
+      const fetchHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+        'apikey': ANON_KEY,
       };
+
+      // Helper: chamar uma função com timeout de 30s
+      const callFunction = async (fnName: string): Promise<{ ok: boolean; data: any; status: number; raw: string }> => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        try {
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
+            method: 'POST',
+            headers: fetchHeaders,
+            body: payload,
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          const raw = await res.text();
+          let parsed: any = null;
+          try { parsed = JSON.parse(raw); } catch { parsed = { raw }; }
+          console.log(`📥 ${fnName} respondeu:`, res.status, raw.substring(0, 200));
+          return { ok: res.ok, data: parsed, status: res.status, raw };
+        } catch (err: any) {
+          clearTimeout(timeoutId);
+          if (err.name === 'AbortError') {
+            return { ok: false, data: { error: 'Timeout (30s)' }, status: 0, raw: 'timeout' };
+          }
+          return { ok: false, data: { error: err.message }, status: 0, raw: err.message };
+        }
+      };
+
+      // Tentar função primária
+      let result = await callFunction('send-user-credentials');
+
+      // Se falhou, tentar fallback
+      if (!result.ok && !result.data?.success) {
+        console.warn('⚠️ send-user-credentials falhou, tentando resend-credentials como fallback...');
+        result = await callFunction('resend-credentials');
+      }
+
+      // Avaliar resultado final
+      if (result.data?.success) {
+        const warning = result.data.warning ? ` (${result.data.warning})` : '';
+        return {
+          success: true,
+          message: `Nova senha enviada para ${email}${warning}`,
+          tempPassword: newPassword
+        };
+      }
+
+      // Ambas falharam
+      const errorDetail = result.data?.error || result.data?.details || `HTTP ${result.status}`;
+      throw new Error(errorDetail);
     } catch (error: any) {
       console.error('❌ Erro ao reenviar credenciais:', error);
-      return { success: false, error: error.message || 'Erro ao reenviar credenciais' };
+      return { success: false, error: error.message || 'Erro ao reenviar credenciais', message: error.message || 'Erro ao reenviar credenciais', tempPassword: '' };
     }
   };
 
