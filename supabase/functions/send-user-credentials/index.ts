@@ -26,7 +26,7 @@ Deno.serve(async (req: Request) => {
     const planType = ['free', 'premium', 'pro'].includes(rawPlan) ? rawPlan : 'premium';
     const mode = String(body.mode || 'create').trim();
 
-    console.log("🚀 send-user-credentials v11 |", email, "| modo:", mode, "| plano:", planType);
+    console.log("🚀 send-user-credentials v12 |", email, "| modo:", mode, "| plano:", planType);
 
     if (!email || !tempPassword) {
       return new Response(JSON.stringify({ error: 'Campos obrigatórios faltando (email e tempPassword)' }), { status: 400, headers });
@@ -49,34 +49,79 @@ Deno.serve(async (req: Request) => {
     let userId: string | null = null;
     let isNewUser = false;
 
-    // ── BLOCO 1: Tentar criar usuário ──
+    // ── BLOCO 1: Buscar usuário existente primeiro (evita 500 de already registered) ──
     try {
-      const createRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
-        method: 'POST',
-        headers: authHeaders,
-        body: JSON.stringify({
-          email,
-          password: tempPassword,
-          email_confirm: true,
-          user_metadata: { full_name: fullName },
-        }),
-      });
-      const createText = await createRes.text();
-      let createData: Record<string, unknown> = {};
-      try { createData = JSON.parse(createText); } catch (_e) { /* ignore */ }
+      for (let p = 1; p <= 10; p++) {
+        const lRes = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=${p}&per_page=500`, {
+          headers: { 'Authorization': `Bearer ${serviceKey}`, 'apikey': serviceKey },
+        });
+        const lText = await lRes.text();
+        if (!lRes.ok) break;
 
-      if (createRes.ok && createData.id) {
-        userId = createData.id as string;
-        isNewUser = true;
-        console.log("✅ Novo usuário criado:", userId);
-      } else {
-        console.log("ℹ️ Criação falhou (esperado se já existe):", createRes.status, createText.substring(0, 120));
+        let lData: { users?: Array<{ id: string; email?: string }> } = { users: [] };
+        try { lData = JSON.parse(lText); } catch (_e) { /* ignore */ }
+
+        const users = lData.users || [];
+        if (users.length === 0) break;
+
+        const match = users.find((u) => u.email?.toLowerCase() === email);
+        if (match) {
+          userId = match.id;
+          console.log("✅ Usuário existente encontrado:", userId);
+          break;
+        }
+
+        if (users.length < 500) break;
       }
     } catch (e) {
-      console.log("⚠️ Erro no bloco criar usuário (continuando):", e);
+      console.log("⚠️ Erro ao buscar usuário existente (continuando):", e);
     }
 
-    // ── BLOCO 2: Buscar userId se não foi criado ──
+    // ── BLOCO 2: Criar usuário somente se não existir ──
+    if (!userId) {
+      try {
+        const createRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({
+            email,
+            password: tempPassword,
+            email_confirm: true,
+            user_metadata: { full_name: fullName },
+          }),
+        });
+        const createText = await createRes.text();
+        let createData: Record<string, unknown> = {};
+        try { createData = JSON.parse(createText); } catch (_e) { /* ignore */ }
+
+        if (createRes.ok && createData.id) {
+          userId = createData.id as string;
+          isNewUser = true;
+          console.log("✅ Novo usuário criado:", userId);
+        } else {
+          // Corrida: usuário pode ter sido criado entre a busca e a criação
+          const alreadyRegistered = createText.toLowerCase().includes('already been registered') || createRes.status === 422;
+          if (alreadyRegistered) {
+            console.log("ℹ️ Usuário já registrado durante criação, tentando relocalizar...");
+            const relinkRes = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
+              method: 'POST',
+              headers: authHeaders,
+              body: JSON.stringify({ type: 'magiclink', email }),
+            });
+            const relinkText = await relinkRes.text();
+            let relinkData: Record<string, unknown> = {};
+            try { relinkData = JSON.parse(relinkText); } catch (_e) { /* ignore */ }
+            userId = (relinkData.id || (relinkData.user as Record<string, unknown>)?.id || null) as string | null;
+          } else {
+            return new Response(JSON.stringify({ error: `Falha ao criar usuário: ${createText || createRes.status}` }), { status: 500, headers });
+          }
+        }
+      } catch (e) {
+        console.log("⚠️ Erro no bloco criar usuário:", e);
+      }
+    }
+
+    // ── BLOCO 3: Último fallback para obter userId ──
     if (!userId) {
       try {
         const linkRes = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
@@ -94,28 +139,6 @@ Deno.serve(async (req: Request) => {
         }
       } catch (e) {
         console.log("⚠️ Erro no bloco generate_link (continuando):", e);
-      }
-    }
-
-    // ── BLOCO 3: Fallback busca paginada ──
-    if (!userId) {
-      try {
-        for (let p = 1; p <= 10; p++) {
-          const lRes = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=${p}&per_page=500`, {
-            headers: { 'Authorization': `Bearer ${serviceKey}`, 'apikey': serviceKey },
-          });
-          const lText = await lRes.text();
-          if (!lRes.ok) break;
-          let lData: { users?: Array<{ id: string; email?: string }> } = { users: [] };
-          try { lData = JSON.parse(lText); } catch (_e) { /* ignore */ }
-          const users = lData.users || [];
-          if (users.length === 0) break;
-          const match = users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
-          if (match) { userId = match.id; console.log("✅ Encontrado via busca paginada:", userId); break; }
-          if (users.length < 500) break;
-        }
-      } catch (e) {
-        console.log("⚠️ Erro no bloco busca paginada (continuando):", e);
       }
     }
 
@@ -336,7 +359,7 @@ Deno.serve(async (req: Request) => {
         return new Response(JSON.stringify({ success: true, userId, warning: 'Email falhou mas credenciais atualizadas' }), { status: 200, headers });
       }
 
-      console.log("✅ send-user-credentials v11 OK:", email, userId, emailData.id);
+      console.log("✅ send-user-credentials v12 OK:", email, userId, emailData.id);
       return new Response(JSON.stringify({ success: true, userId, emailId: emailData.id }), { status: 200, headers });
     } catch (e) {
       console.error("⚠️ Erro ao enviar email (retornando sucesso parcial):", e);
@@ -345,7 +368,7 @@ Deno.serve(async (req: Request) => {
 
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error("💥 send-user-credentials v11 erro fatal:", msg);
+    console.error("💥 send-user-credentials v12 erro fatal:", msg);
     return new Response(JSON.stringify({ error: 'Erro interno', details: msg }), { status: 500, headers });
   }
 });
