@@ -46,6 +46,13 @@ export function useAdmin() {
     checkAdminStatus();
   }, [user]);
 
+  // Auto-carregar usuários quando isAdmin for true
+  useEffect(() => {
+    if (isAdmin && !loading) {
+      fetchUsers();
+    }
+  }, [isAdmin, loading]);
+
   const checkAdminStatus = async () => {
     if (!user) {
       setIsAdmin(false);
@@ -207,15 +214,25 @@ export function useAdmin() {
 
   const deleteUser = async (userId: string, userEmail: string) => {
     try {
-      const { error } = await supabase.auth.admin.deleteUser(userId);
+      console.log('🗑️ Excluindo usuário via Edge Function cleanup-users:', userEmail);
+
+      const { data, error } = await supabase.functions.invoke('cleanup-users', {
+        body: { action: 'cleanup_incomplete', email: userEmail }
+      });
 
       if (error) {
-        throw error;
+        console.error('❌ Erro na Edge Function cleanup-users:', error);
+        throw new Error(error.message || 'Erro ao excluir usuário');
       }
 
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      console.log('✅ Usuário excluído com sucesso:', data);
       await fetchUsers();
       return { success: true };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting user:', error);
       return { success: false, error: error.message };
     }
