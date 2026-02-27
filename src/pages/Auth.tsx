@@ -64,6 +64,26 @@ export default function Auth() {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
 
+      // Sincronizar assinatura ANTES de deslogar
+      try {
+        console.log('🔄 Sincronizando assinatura após reset de senha...');
+        const { data: refreshData, error: refreshError } = await supabase.functions.invoke(
+          'refresh-subscription-after-reset'
+        );
+        if (refreshError) {
+          console.error('⚠️ Erro ao sincronizar assinatura:', refreshError);
+          toast({
+            title: 'Aviso',
+            description: 'Senha redefinida, mas houve um problema ao sincronizar seu acesso. Tente fazer login normalmente.',
+            variant: 'destructive',
+          });
+        } else {
+          console.log('✅ Assinatura sincronizada:', refreshData);
+        }
+      } catch (refreshErr) {
+        console.error('⚠️ Falha na sincronização de assinatura:', refreshErr);
+      }
+
       setPasswordResetSuccess(true);
       toast({
         title: 'Senha redefinida!',

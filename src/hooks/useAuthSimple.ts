@@ -129,39 +129,57 @@ export const useAuthProvider = () => {
     try {
       console.log('Checking subscription for user:', userId);
       
+      // Buscar TODAS as subscriptions ativas do usuário (não apenas uma)
       const { data, error } = await supabase
         .from('subscriptions')
         .select('status, plan_type, expires_at')
         .eq('user_id', userId)
         .eq('status', 'active')
-        .maybeSingle();
+        .order('expires_at', { ascending: false });
 
       if (error) {
-        // Se tabela não existe ou estrutura incorreta, assumir acesso liberado para desenvolvimento
         if (error.code === 'PGRST106' || error.code === '42P01' || error.code === '42703' || error.details?.includes('does not exist')) {
           console.warn('Tabela subscriptions não encontrada, liberando acesso para desenvolvimento');
           setIsSubscribed(true);
           return;
         }
         console.error('Error checking subscription:', error);
-        // Em caso de qualquer erro, liberar acesso para desenvolvimento
         setIsSubscribed(true);
         return;
       }
 
-      if (data) {
-        // Check if subscription is still valid
-        const isValid = !data.expires_at || new Date(data.expires_at) > new Date();
-        setIsSubscribed(isValid);
-        console.log('Subscription status:', { isValid, plan_type: data.plan_type });
+      if (data && data.length > 0) {
+        // Considerar válida se QUALQUER subscription ativa não estiver expirada
+        const hasValidSub = data.some(sub => !sub.expires_at || new Date(sub.expires_at) > new Date());
+        setIsSubscribed(hasValidSub);
+        console.log('Subscription check:', { total: data.length, hasValidSub, plans: data.map(s => s.plan_type) });
       } else {
-        // Se não há dados de subscription, liberar acesso temporário
+        // Fallback: buscar por email do usuário (registros legados sem user_id)
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.email) {
+            const { data: emailSubs } = await supabase
+              .from('subscriptions')
+              .select('status, plan_type, expires_at')
+              .eq('customer_email', user.email)
+              .eq('status', 'active');
+            
+            if (emailSubs && emailSubs.length > 0) {
+              const hasValid = emailSubs.some(sub => !sub.expires_at || new Date(sub.expires_at) > new Date());
+              setIsSubscribed(hasValid);
+              console.log('Subscription found by email fallback:', { hasValid, plans: emailSubs.map(s => s.plan_type) });
+              return;
+            }
+          }
+        } catch (emailErr) {
+          console.warn('Email fallback subscription check failed:', emailErr);
+        }
+        
         setIsSubscribed(true);
         console.log('No subscription data, granting temporary access');
       }
     } catch (error) {
       console.error('Error in checkSubscriptionStatus:', error);
-      // Em caso de erro, liberar acesso para desenvolvimento
       setIsSubscribed(true);
     }
   };

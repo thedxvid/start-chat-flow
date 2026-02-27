@@ -134,23 +134,26 @@ Deno.serve(async (req: Request) => {
     // ── BLOCO 5b: Garantir subscription ativa para usuários existentes (modo reset) ──
     if (userId && !isNewUser) {
       try {
-        const subRes = await fetch(`${supabaseUrl}/rest/v1/subscriptions?user_id=eq.${userId}&select=id,status,expires_at`, {
+        // Buscar por user_id E por email (para capturar registros legados)
+        const subRes = await fetch(`${supabaseUrl}/rest/v1/subscriptions?or=(user_id.eq.${userId},customer_email.eq.${encodeURIComponent(email)})&select=id,status,expires_at,plan_type,user_id`, {
           headers: { 'Authorization': `Bearer ${serviceKey}`, 'apikey': serviceKey },
         });
         const subText = await subRes.text();
-        let subData: Array<{ id: string; status: string; expires_at: string | null }> = [];
+        let subData: Array<{ id: string; status: string; expires_at: string | null; plan_type: string; user_id: string | null }> = [];
         try { subData = JSON.parse(subText); } catch (_e) { /* ignore */ }
 
         const newExpires = new Date(Date.now() + 180 * 86400000).toISOString();
 
         if (subData.length > 0) {
-          const subId = subData[0].id;
-          await fetch(`${supabaseUrl}/rest/v1/subscriptions?id=eq.${subId}`, {
-            method: 'PATCH',
-            headers: authHeaders,
-            body: JSON.stringify({ status: 'active', expires_at: newExpires }),
-          }).then(r => r.text());
-          console.log("✅ Subscription renovada para usuario existente:", userId, "expires:", newExpires);
+          // Atualizar TODAS as subscriptions relevantes
+          for (const sub of subData) {
+            await fetch(`${supabaseUrl}/rest/v1/subscriptions?id=eq.${sub.id}`, {
+              method: 'PATCH',
+              headers: authHeaders,
+              body: JSON.stringify({ status: 'active', expires_at: newExpires, user_id: userId }),
+            }).then(r => r.text());
+          }
+          console.log(`✅ ${subData.length} subscriptions renovadas para usuario existente:`, userId, "expires:", newExpires);
         } else {
           await fetch(`${supabaseUrl}/rest/v1/subscriptions`, {
             method: 'POST',
