@@ -131,6 +131,45 @@ Deno.serve(async (req: Request) => {
       console.log("⚠️ userId não encontrado — email será enviado mesmo assim");
     }
 
+    // ── BLOCO 5b: Garantir subscription ativa para usuários existentes (modo reset) ──
+    if (userId && !isNewUser) {
+      try {
+        const subRes = await fetch(`${supabaseUrl}/rest/v1/subscriptions?user_id=eq.${userId}&select=id,status,expires_at`, {
+          headers: { 'Authorization': `Bearer ${serviceKey}`, 'apikey': serviceKey },
+        });
+        const subText = await subRes.text();
+        let subData: Array<{ id: string; status: string; expires_at: string | null }> = [];
+        try { subData = JSON.parse(subText); } catch (_e) { /* ignore */ }
+
+        const newExpires = new Date(Date.now() + 180 * 86400000).toISOString();
+
+        if (subData.length > 0) {
+          const subId = subData[0].id;
+          await fetch(`${supabaseUrl}/rest/v1/subscriptions?id=eq.${subId}`, {
+            method: 'PATCH',
+            headers: authHeaders,
+            body: JSON.stringify({ status: 'active', expires_at: newExpires }),
+          }).then(r => r.text());
+          console.log("✅ Subscription renovada para usuario existente:", userId, "expires:", newExpires);
+        } else {
+          await fetch(`${supabaseUrl}/rest/v1/subscriptions`, {
+            method: 'POST',
+            headers: authHeaders,
+            body: JSON.stringify({
+              user_id: userId, customer_email: email, customer_name: fullName,
+              status: 'active', plan_type: planType,
+              access_code: 'ADMIN-RESET',
+              kiwify_order_id: 'ADMIN-RESET-' + Math.random().toString(36).substr(2, 12).toUpperCase(),
+              expires_at: newExpires,
+            }),
+          }).then(r => r.text());
+          console.log("✅ Nova subscription criada para usuario existente:", userId);
+        }
+      } catch (e) {
+        console.log("⚠️ Erro ao renovar subscription (continuando):", e);
+      }
+    }
+
     // ── BLOCO 5: Criar registros auxiliares para novos usuários ──
     if (isNewUser && userId) {
       try {
