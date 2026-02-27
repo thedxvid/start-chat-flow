@@ -1,65 +1,45 @@
 
 
-# Corrigir Criacao de Usuarios no Painel Admin
+# Corrigir bloqueio de acesso premium ao redefinir senha
 
-## Problemas Identificados
+## Problema
+Quando o admin redefine a senha de um usuário pelo painel, a Edge Function `send-user-credentials` atualiza apenas a senha do Supabase Auth, mas nao renova nem garante que a assinatura esteja ativa. Se o campo `expires_at` da assinatura expirou, o sistema bloqueia o acesso com "Acesso Premium Necessario".
 
-### Problema 1: Edge Function retornando 500
-A screenshot mostra que a Edge Function `send-user-credentials` retorna status 500. A funcao verifica se `RESEND_API_KEY` existe nas variaveis de ambiente do Supabase (linha 30-33). Se estiver ausente, retorna 500 com "Config incompleta". E necessario confirmar que esse secret esta configurado no Supabase Dashboard.
-
-### Problema 2: Uso do Resend SDK no lado do cliente (browser)
-O arquivo `src/lib/resend.ts` importa o pacote `resend` (SDK Node.js) e tenta usa-lo diretamente no browser. Isso NUNCA funciona -- o Resend SDK so opera server-side. O `useAdmin.ts` importa `sendAdminNotification` e `sendWelcomeEmail` desse arquivo, o que causa erros silenciosos ou quebra o fluxo.
-
-Alem disso, a chave da API Resend esta **hardcoded** no codigo client-side (`re_PwMwDDDC_...`), o que e uma vulnerabilidade de seguranca grave.
-
-### Problema 3: Falhas silenciosas bloqueiam o fluxo
-Mesmo que a Edge Function funcione, chamadas subsequentes a `sendAdminNotification` (client-side Resend) podem lancar excecoes que interrompem o fluxo.
+## Causa raiz
+- No arquivo `supabase/functions/send-user-credentials/index.ts`, o Bloco 5 (criacao de subscription) so executa para usuarios novos (`isNewUser === true`).
+- Para usuarios existentes no modo `reset`, nenhuma verificacao ou atualizacao da subscription e feita.
+- O `checkSubscriptionStatus` em `useAuthSimple.ts` verifica `status = 'active'` **e** `expires_at > agora`. Se expirou, o acesso e negado.
 
 ## Solucao
 
-### 1. Remover uso client-side do Resend SDK em `useAdmin.ts`
-- Remover imports de `sendWelcomeEmail` e `sendAdminNotification` de `src/lib/resend.ts`
-- Essas notificacoes ja sao tratadas pela Edge Function (que envia o email)
-- As chamadas a `sendAdminNotification` no `useAdmin.ts` sao opcionais e podem ser simplesmente removidas (ou movidas para uma Edge Function separada no futuro)
+### 1. Atualizar Edge Function `send-user-credentials` (principal)
+Adicionar um **Bloco 5b** apos o Bloco 4 (atualizacao de senha de usuario existente) que:
+- Busca a subscription existente do usuario
+- Se existir e estiver expirada ou inativa, atualiza `status` para `active` e renova `expires_at` para +180 dias
+- Se nao existir, cria uma nova subscription com status `active`
 
-### 2. Tornar `createUser` mais resiliente em `useAdmin.ts`
-- Remover chamadas client-side ao Resend que podem falhar
-- Melhorar tratamento de erros para mostrar mensagens claras ao admin
-- Logar a resposta completa da Edge Function para debug
+Isso garante que toda vez que o admin reenvia credenciais, o acesso e restaurado automaticamente.
 
-### 3. Remover ou limpar `src/lib/resend.ts`
-- Remover a chave API hardcoded (vulnerabilidade de seguranca)
-- Manter o arquivo apenas como referencia de templates, ou remove-lo se nao for usado em outro lugar
+### 2. Aplicar mesma logica na Edge Function `resend-credentials`
+Replicar a mesma verificacao/renovacao de subscription no `resend-credentials/index.ts` para consistencia.
 
-### 4. Verificar secret RESEND_API_KEY no Supabase
-- Orientar o usuario a confirmar que `RESEND_API_KEY` esta definida nos Supabase Secrets (Dashboard > Settings > Edge Functions > Secrets)
+## Detalhes tecnicos
 
-## Alteracoes por Arquivo
+No `send-user-credentials/index.ts`, entre o Bloco 4 e o Bloco 6, adicionar:
 
-| Arquivo | Acao |
-|---|---|
-| `src/hooks/useAdmin.ts` | Remover imports do Resend SDK; remover chamadas a `sendAdminNotification`/`sendWelcomeEmail`; simplificar `createUser`, `makeUserAdmin`, `deleteUser`, `updateUserSubscription`, `resendWelcomeEmail` |
-| `src/lib/resend.ts` | Remover chave API hardcoded e uso do SDK client-side |
+```text
+// BLOCO 5b: Garantir subscription ativa para usuarios existentes (modo reset)
+if (userId && !isNewUser) {
+  // Buscar subscription existente
+  const subRes = await fetch(supabaseUrl + '/rest/v1/subscriptions?user_id=eq.' + userId + '&select=id,status,expires_at', ...)
+  // Se encontrou -> PATCH status=active, expires_at=+180 dias
+  // Se nao encontrou -> POST nova subscription active
+}
+```
 
-## Secao Tecnica
+### Arquivos alterados
+- `supabase/functions/send-user-credentials/index.ts` - Adicionar renovacao de subscription no reset
+- `supabase/functions/resend-credentials/index.ts` - Mesma logica de renovacao
 
-O `createUser` atualmente faz:
-1. Gera senha temporaria
-2. Chama Edge Function `send-user-credentials` (que cria o usuario E envia o email)
-3. Depois chama `sendAdminNotification` via Resend SDK client-side (FALHA)
-
-O fluxo corrigido sera:
-1. Gera senha temporaria
-2. Chama Edge Function `send-user-credentials`
-3. Retorna resultado (sem tentativa de enviar email pelo browser)
-
-A Edge Function ja cuida de todo o fluxo (criar usuario + enviar email), entao nao ha necessidade de duplicar a logica no client.
-
-## Acao Manual Necessaria
-
-Voce precisara verificar no Supabase Dashboard se o secret `RESEND_API_KEY` esta configurado:
-1. Acesse supabase.com/dashboard
-2. Va para o projeto `wpqthkvidfmjyroaijiq`
-3. Settings > Edge Functions > Secrets
-4. Confirme que `RESEND_API_KEY` existe com um valor valido
-
+### Resultado esperado
+Ao clicar em "Reenviar" no painel admin, alem de redefinir a senha e enviar o email, o sistema garante que a assinatura do usuario esteja ativa por mais 180 dias, eliminando o bloqueio de acesso premium.
