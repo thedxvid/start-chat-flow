@@ -229,7 +229,19 @@ export function useAdmin() {
         throw new Error(data.error);
       }
 
-      console.log('✅ Usuário excluído com sucesso:', data);
+      console.log('✅ Usuário excluído do Auth:', data);
+
+      // Limpar registros locais para garantir remoção da lista
+      // (caso o Auth já tenha sido removido mas profiles/subs permaneçam)
+      try {
+        await supabase.from('subscriptions').delete().eq('user_id', userId);
+        await supabase.from('user_roles').delete().eq('user_id', userId);
+        await supabase.from('profiles').delete().eq('user_id', userId);
+        console.log('✅ Registros auxiliares removidos para:', userId);
+      } catch (cleanErr) {
+        console.warn('⚠️ Erro ao limpar registros auxiliares (não crítico):', cleanErr);
+      }
+
       await fetchUsers();
       return { success: true };
     } catch (error: any) {
