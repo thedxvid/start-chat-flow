@@ -5,7 +5,7 @@ export const emailConfig = {
   from: 'Sistema Start <noreply@sistemastart.com>',
   fromName: 'Sistema Start',
   supportEmail: 'suporte@sistemastart.com',
-  adminEmail: 'admin@sistemastart.com' // Altere para o seu email real
+  adminEmail: 'admin@sistemastart.com'
 };
 
 // Templates de email

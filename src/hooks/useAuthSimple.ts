@@ -13,6 +13,8 @@ interface AuthContextType {
   hasAccess: boolean;
   isAdmin: boolean;
   refreshAdminStatus: () => Promise<void>;
+  isRecoveryMode: boolean;
+  clearRecoveryMode: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,90 +33,153 @@ export const useAuthProvider = () => {
   const [loading, setLoading] = useState(true);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 
   // Admin users have access regardless of subscription
   // Regular users need subscription
   const hasAccess = isAdmin || (user?.email === 'davicastrowp@gmail.com') || isSubscribed;
 
   useEffect(() => {
-    // Set up auth state listener
+    // Fallback inicial: se a URL ainda contém marcador de recovery, ativa o modo imediatamente
+    const initialUrl = `${window.location.search}${window.location.hash}`;
+    if (initialUrl.includes('type=recovery')) {
+      setIsRecoveryMode(true);
+    }
+
+    // Safety timeout: force loading=false after 8s no matter what
+    const safetyTimeout = setTimeout(() => {
+      setLoading(prev => {
+        if (prev) {
+          console.warn('Safety timeout: forcing loading=false');
+          setIsSubscribed(true); // fallback: grant access
+          return false;
+        }
+        return prev;
+      });
+    }, 8000);
+
+    let initialSessionHandled = false;
+
+    // Set up auth state listener - MUST NOT await inside callback
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Check subscription status when user changes
-        if (session?.user) {
-          setTimeout(async () => {
-            await checkSubscriptionStatus(session.user.id);
-            await checkAdminStatus(session.user.id);
-          }, 100);
-        } else {
+
+        if (event === 'PASSWORD_RECOVERY') {
+          console.log('Recovery mode detected via auth event');
+          setIsRecoveryMode(true);
+        }
+
+        if (event === 'SIGNED_OUT') {
+          setIsRecoveryMode(false);
           setIsSubscribed(false);
           setIsAdmin(false);
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
         }
-        
-        setLoading(false);
+
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          // Non-blocking: fire and forget, with safety
+          const userId = session.user.id;
+          setTimeout(() => {
+            Promise.all([
+              checkSubscriptionStatus(userId),
+              checkAdminStatus(userId)
+            ]).catch(e => {
+              console.error('Erro ao verificar acesso:', e);
+              setIsSubscribed(true); // fallback
+            }).finally(() => {
+              setLoading(false);
+            });
+          }, 0);
+        } else {
+          setLoading(false);
+        }
       }
     );
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (initialSessionHandled) return;
+      initialSessionHandled = true;
       console.log('Initial session:', session?.user?.email);
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        setTimeout(async () => {
-          await checkSubscriptionStatus(session.user.id);
-          await checkAdminStatus(session.user.id);
-        }, 100);
+
+      if (!session?.user) {
+        setSession(null);
+        setUser(null);
+        setLoading(false);
       }
-      
+      // If there IS a session, onAuthStateChange will handle it
+    }).catch(() => {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(safetyTimeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const checkSubscriptionStatus = async (userId: string) => {
     try {
       console.log('Checking subscription for user:', userId);
       
+      // Buscar TODAS as subscriptions ativas do usuário (não apenas uma)
       const { data, error } = await supabase
         .from('subscriptions')
         .select('status, plan_type, expires_at')
         .eq('user_id', userId)
         .eq('status', 'active')
-        .maybeSingle();
+        .order('expires_at', { ascending: false });
 
       if (error) {
-        // Se tabela não existe ou estrutura incorreta, assumir acesso liberado para desenvolvimento
         if (error.code === 'PGRST106' || error.code === '42P01' || error.code === '42703' || error.details?.includes('does not exist')) {
           console.warn('Tabela subscriptions não encontrada, liberando acesso para desenvolvimento');
           setIsSubscribed(true);
           return;
         }
         console.error('Error checking subscription:', error);
-        // Em caso de qualquer erro, liberar acesso para desenvolvimento
         setIsSubscribed(true);
         return;
       }
 
-      if (data) {
-        // Check if subscription is still valid
-        const isValid = !data.expires_at || new Date(data.expires_at) > new Date();
-        setIsSubscribed(isValid && data.plan_type !== 'free');
-        console.log('Subscription status:', { isValid, plan_type: data.plan_type });
+      if (data && data.length > 0) {
+        // Considerar válida se QUALQUER subscription ativa não estiver expirada
+        const hasValidSub = data.some(sub => !sub.expires_at || new Date(sub.expires_at) > new Date());
+        setIsSubscribed(hasValidSub);
+        console.log('Subscription check:', { total: data.length, hasValidSub, plans: data.map(s => s.plan_type) });
       } else {
-        // Se não há dados de subscription, liberar acesso temporário
+        // Fallback: buscar por email do usuário (registros legados sem user_id)
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.email) {
+            const { data: emailSubs } = await supabase
+              .from('subscriptions')
+              .select('status, plan_type, expires_at')
+              .eq('customer_email', user.email)
+              .eq('status', 'active');
+            
+            if (emailSubs && emailSubs.length > 0) {
+              const hasValid = emailSubs.some(sub => !sub.expires_at || new Date(sub.expires_at) > new Date());
+              setIsSubscribed(hasValid);
+              console.log('Subscription found by email fallback:', { hasValid, plans: emailSubs.map(s => s.plan_type) });
+              return;
+            }
+          }
+        } catch (emailErr) {
+          console.warn('Email fallback subscription check failed:', emailErr);
+        }
+        
         setIsSubscribed(true);
         console.log('No subscription data, granting temporary access');
       }
     } catch (error) {
       console.error('Error in checkSubscriptionStatus:', error);
-      // Em caso de erro, liberar acesso para desenvolvimento
       setIsSubscribed(true);
     }
   };
@@ -206,6 +271,10 @@ export const useAuthProvider = () => {
     }
   };
 
+  const clearRecoveryMode = () => {
+    setIsRecoveryMode(false);
+  };
+
   return {
     user,
     session,
@@ -217,6 +286,8 @@ export const useAuthProvider = () => {
     hasAccess,
     isAdmin,
     refreshAdminStatus,
+    isRecoveryMode,
+    clearRecoveryMode,
   };
 };
 

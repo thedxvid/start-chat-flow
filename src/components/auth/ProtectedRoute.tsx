@@ -11,7 +11,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, loading, hasAccess } = useAuth();
+  const { user, loading, hasAccess, isRecoveryMode } = useAuth();
   const navigate = useNavigate();
 
   if (loading) {
@@ -20,6 +20,17 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
+  }
+
+  // Detectar fluxo de recovery via flag global (evento PASSWORD_RECOVERY do Supabase)
+  if (isRecoveryMode) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Fallback: detectar hash na URL (caso raro)
+  const hash = window.location.hash;
+  if (hash && hash.includes('type=recovery')) {
+    return <Navigate to={`/auth${hash}`} replace />;
   }
 
   if (!user) {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuthSimple';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Crown, Key, Mail, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Loader2, Crown, Key, Mail, ArrowLeft, CheckCircle, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -21,10 +21,95 @@ export default function Auth() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
 
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, isRecoveryMode, clearRecoveryMode } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Detectar recovery mode via contexto global e fallback por URL
+  useEffect(() => {
+    const urlPayload = `${window.location.search}${window.location.hash}`;
+    const recoveryFromUrl = urlPayload.includes('type=recovery');
+
+    if (isRecoveryMode || recoveryFromUrl) {
+      console.log('Recovery mode detected', { isRecoveryMode, recoveryFromUrl });
+      setShowResetPassword(true);
+      setShowForgotPassword(false);
+      setError('');
+    }
+  }, [isRecoveryMode]);
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    if (newPassword !== confirmPassword) {
+      setError('As senhas não coincidem.');
+      setLoading(false);
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setError('A senha deve ter pelo menos 6 caracteres.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+
+      // Sincronizar assinatura ANTES de deslogar
+      try {
+        console.log('🔄 Sincronizando assinatura após reset de senha...');
+        const { data: refreshData, error: refreshError } = await supabase.functions.invoke(
+          'refresh-subscription-after-reset'
+        );
+        if (refreshError) {
+          console.error('⚠️ Erro ao sincronizar assinatura:', refreshError);
+          toast({
+            title: 'Aviso',
+            description: 'Senha redefinida, mas houve um problema ao sincronizar seu acesso. Tente fazer login normalmente.',
+            variant: 'destructive',
+          });
+        } else {
+          console.log('✅ Assinatura sincronizada:', refreshData);
+        }
+      } catch (refreshErr) {
+        console.error('⚠️ Falha na sincronização de assinatura:', refreshErr);
+      }
+
+      setPasswordResetSuccess(true);
+      toast({
+        title: 'Senha redefinida!',
+        description: 'Sua nova senha foi salva com sucesso.',
+      });
+
+      // Limpar recovery mode, invalidar sessão temporária de recovery e voltar para /auth
+      clearRecoveryMode();
+      await supabase.auth.signOut();
+      window.history.replaceState({}, document.title, '/auth');
+      setTimeout(() => {
+        setShowResetPassword(false);
+        setPasswordResetSuccess(false);
+        navigate('/auth', { replace: true });
+      }, 1200);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao redefinir senha.');
+      toast({
+        title: 'Erro',
+        description: err.message || 'Erro ao redefinir senha.',
+        variant: 'destructive',
+      });
+    }
+
+    setLoading(false);
+  };
 
   // Função para validar código de acesso no banco de dados
   const validateAccessCode = async (code: string, customerEmail: string): Promise<boolean> => {
@@ -210,8 +295,67 @@ export default function Auth() {
           <p className="text-muted-foreground">Mentoria Expert em Marketing Digital</p>
         </div>
 
-        {/* ——— TELA DE RECUPERAÇÃO DE SENHA ——— */}
-        {showForgotPassword ? (
+        {/* ——— TELA DE REDEFINIÇÃO DE SENHA (após clicar no link do email) ——— */}
+        {showResetPassword ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5" />
+                Nova Senha
+              </CardTitle>
+              <CardDescription>
+                Defina sua nova senha de acesso ao Sistema Start.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {passwordResetSuccess ? (
+                <div className="text-center py-6 space-y-4">
+                  <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
+                  <h3 className="text-lg font-semibold text-foreground">Senha redefinida!</h3>
+                  <p className="text-muted-foreground text-sm">Redirecionando...</p>
+                </div>
+              ) : (
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div>
+                    <Label htmlFor="new-password">Nova senha</Label>
+                    <Input
+                      id="new-password"
+                      type="password"
+                      placeholder="Mínimo 6 caracteres"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="confirm-password">Confirmar senha</Label>
+                    <Input
+                      id="confirm-password"
+                      type="password"
+                      placeholder="Repita a senha"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
+                  </div>
+
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Salvar nova senha
+                  </Button>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+        ) : showForgotPassword ? (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

@@ -39,7 +39,9 @@ import {
   Home,
   Upload,
   FileSpreadsheet,
-  Download
+  Download,
+  Search,
+  RefreshCw
 } from 'lucide-react';
 
 export function Admin() {
@@ -56,7 +58,9 @@ export function Admin() {
     updateUserSubscription,
     fetchUsers,
     cleanupIncompleteUsers,
-    bulkCreateUsers
+    bulkCreateUsers,
+    resetUserCredentials,
+    bulkResetCredentials
   } = useAdmin();
 
   const [newAdminEmail, setNewAdminEmail] = useState('');
@@ -69,7 +73,20 @@ export function Admin() {
   const [bulkImportResults, setBulkImportResults] = useState<Array<{ email: string; success: boolean; error?: string }> | null>(null);
   const [bulkImportProgress, setBulkImportProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+<<<<<<< HEAD
   const [resendingUserId, setResendingUserId] = useState<string | null>(null);
+=======
+  const [searchQuery, setSearchQuery] = useState('');
+  const [resendingAccess, setResendingAccess] = useState<string | null>(null);
+  const [showBulkResetDialog, setShowBulkResetDialog] = useState(false);
+  const [bulkResetCount, setBulkResetCount] = useState(92);
+  const [bulkResetting, setBulkResetting] = useState(false);
+  const [bulkResetProgress, setBulkResetProgress] = useState(0);
+  const [bulkResetTotal, setBulkResetTotal] = useState(0);
+  const [bulkResetResults, setBulkResetResults] = useState<Array<{ email: string; success: boolean; error?: string }> | null>(null);
+  const [bulkResetMode, setBulkResetMode] = useState<'recent' | 'paste'>('recent');
+  const [pastedEmails, setPastedEmails] = useState('');
+>>>>>>> 8f91f6eebb11948f55e43810191438dce55df35a
 
 
   // Form state for creating new user
@@ -77,7 +94,7 @@ export function Admin() {
     email: '',
     fullName: '',
     role: 'user' as 'user' | 'admin',
-    planType: 'free' as 'free' | 'premium' | 'pro'
+    planType: 'premium' as 'free' | 'premium' | 'pro'
   });
 
   if (loading) {
@@ -142,7 +159,7 @@ export function Admin() {
           email: '',
           fullName: '',
           role: 'user',
-          planType: 'free'
+          planType: 'premium'
         });
         setShowCreateUserDialog(false);
       } else {
@@ -219,6 +236,137 @@ export function Admin() {
     }
   };
 
+  // ── Reenviar apenas para os que falharam ──
+  const handleRetryFailed = async () => {
+    const failedEmails = bulkResetResults?.filter(r => !r.success) || [];
+    if (failedEmails.length === 0) return;
+
+    const usersList = failedEmails.map(f => {
+      const u = users.find(u => u.email === f.email);
+      return {
+        email: f.email,
+        fullName: u?.profile?.full_name || f.email,
+        planType: u?.subscription?.plan_type || 'premium'
+      };
+    });
+
+    setBulkResetting(true);
+    setBulkResetProgress(0);
+    setBulkResetTotal(usersList.length);
+    setBulkResetResults(null);
+
+    const results = await bulkResetCredentials(usersList, (current, total) => {
+      setBulkResetProgress(current);
+      setBulkResetTotal(total);
+    });
+
+    setBulkResetResults(results);
+    setBulkResetting(false);
+
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    if (failCount === 0) {
+      toast.success(`Todos os ${successCount} reenvios concluídos com sucesso!`);
+    } else {
+      toast.warning(`Concluído: ${successCount} com sucesso, ${failCount} com erro.`);
+    }
+  };
+
+  // ── Reenvio em massa de credenciais ──
+  const handleBulkReset = async () => {
+    // Ordenar por created_at desc e pegar os primeiros N
+    const sortedUsers = [...users]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, bulkResetCount);
+
+    if (sortedUsers.length === 0) {
+      toast.error('Nenhum usuário encontrado');
+      return;
+    }
+
+    setBulkResetting(true);
+    setBulkResetProgress(0);
+    setBulkResetTotal(sortedUsers.length);
+    setBulkResetResults(null);
+
+    const usersList = sortedUsers.map(u => ({
+      email: u.email,
+      fullName: u.profile?.full_name || u.email,
+      planType: u.subscription?.plan_type || 'premium'
+    }));
+
+    const results = await bulkResetCredentials(usersList, (current, total) => {
+      setBulkResetProgress(current);
+      setBulkResetTotal(total);
+    });
+
+    setBulkResetResults(results);
+    setBulkResetting(false);
+
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    if (failCount === 0) {
+      toast.success(`Acesso reenviado para todos os ${successCount} usuários!`);
+    } else {
+      toast.warning(`Concluído: ${successCount} com sucesso, ${failCount} com erro.`);
+    }
+  };
+
+  // ── Reenvio por lista colada de emails ──
+  const handleBulkResetFromPaste = async () => {
+    const emailList = pastedEmails
+      .split(/[\n,;]+/)
+      .map(e => e.trim().toLowerCase())
+      .filter(e => e && e.includes('@'));
+
+    if (emailList.length === 0) {
+      toast.error('Nenhum email válido encontrado');
+      return;
+    }
+
+    const usersList = emailList.map(email => {
+      const u = users.find(u => u.email.toLowerCase() === email);
+      return {
+        email,
+        fullName: u?.profile?.full_name || email.split('@')[0],
+        planType: u?.subscription?.plan_type || 'premium'
+      };
+    });
+
+    setBulkResetting(true);
+    setBulkResetProgress(0);
+    setBulkResetTotal(usersList.length);
+    setBulkResetResults(null);
+
+    const results = await bulkResetCredentials(usersList, (current, total) => {
+      setBulkResetProgress(current);
+      setBulkResetTotal(total);
+    });
+
+    setBulkResetResults(results);
+    setBulkResetting(false);
+
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    if (failCount === 0) {
+      toast.success(`Acesso reenviado para todos os ${successCount} usuários!`);
+    } else {
+      toast.warning(`Concluído: ${successCount} com sucesso, ${failCount} com erro.`);
+    }
+  };
+
+  const parsedPastedEmails = pastedEmails
+    .split(/[\n,;]+/)
+    .map(e => e.trim().toLowerCase())
+    .filter(e => e && e.includes('@'));
+
+  const bulkResetPreviewUsers = [...users]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, bulkResetCount);
+
   // ── Importação em massa ──
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -264,7 +412,7 @@ export function Admin() {
             ''
           ).toString().trim(),
           role: (row.role || row.Role || row.funcao || row.Funcao || row['Função'] || 'user').toString().trim().toLowerCase() as 'user' | 'admin',
-          planType: (row.plano || row.Plano || row.plan || row.Plan || row.planType || row.plan_type || 'free').toString().trim().toLowerCase() as 'free' | 'premium' | 'pro',
+          planType: (row.plano || row.Plano || row.plan || row.Plan || row.planType || row.plan_type || 'premium').toString().trim().toLowerCase() as 'free' | 'premium' | 'pro',
         })).filter((u: any) => u.email && u.fullName);
 
         if (parsed.length === 0) {
@@ -377,6 +525,13 @@ export function Admin() {
   const formatCost = (cost: number) => {
     return `$${cost.toFixed(4)}`;
   };
+
+  const filteredUsers = searchQuery.trim()
+    ? users.filter(u =>
+        u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (u.profile?.full_name || '').toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : users;
 
   const adminUsers = users.filter(u => u.role === 'admin');
   const regularUsers = users.filter(u => u.role !== 'admin');
@@ -512,6 +667,17 @@ export function Admin() {
                       <Upload className="h-4 w-4 mr-2" />
                       Importar em Massa
                     </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setBulkResetResults(null);
+                        setBulkResetProgress(0);
+                        setShowBulkResetDialog(true);
+                      }}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Reenviar Acesso em Massa
+                    </Button>
                     <Dialog open={showCreateUserDialog} onOpenChange={setShowCreateUserDialog}>
                       <DialogTrigger asChild>
                         <Button>
@@ -592,6 +758,23 @@ export function Admin() {
                 </div>
               </CardHeader>
               <CardContent>
+                {/* Barra de pesquisa */}
+                <div className="mb-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Pesquisar por nome ou email..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  {searchQuery && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {filteredUsers.length} resultado(s) encontrado(s)
+                    </p>
+                  )}
+                </div>
                 <div className="rounded-md border">
                   <Table>
                     <TableHeader>
@@ -606,7 +789,7 @@ export function Admin() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {users.map((user) => (
+                      {filteredUsers.map((user) => (
                         <TableRow key={user.id}>
                           <TableCell>
                             <div>
@@ -664,6 +847,7 @@ export function Admin() {
                               <Button
                                 variant="outline"
                                 size="sm"
+<<<<<<< HEAD
                                 className="h-8 px-2 text-xs gap-1"
                                 onClick={() => handleResendAccess(user.id, user.email, user.profile?.full_name)}
                                 disabled={resendingUserId === user.id}
@@ -673,6 +857,29 @@ export function Admin() {
                                   <Loader2 className="h-3 w-3 animate-spin" />
                                 ) : (
                                   <RefreshCw className="h-3 w-3" />
+=======
+                                className="h-8 px-2 text-xs"
+                                disabled={resendingAccess === user.id}
+                                onClick={async () => {
+                                  setResendingAccess(user.id);
+                                  const result = await resetUserCredentials(
+                                    user.email,
+                                    user.profile?.full_name || user.email,
+                                    user.subscription?.plan_type
+                                  );
+                                  if (result.success) {
+                                    toast.success(result.message);
+                                  } else {
+                                    toast.error(result.error || 'Erro ao reenviar acesso');
+                                  }
+                                  setResendingAccess(null);
+                                }}
+                              >
+                                {resendingAccess === user.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                ) : (
+                                  <RefreshCw className="h-3 w-3 mr-1" />
+>>>>>>> 8f91f6eebb11948f55e43810191438dce55df35a
                                 )}
                                 Reenviar
                               </Button>
@@ -1014,6 +1221,237 @@ export function Admin() {
                     <Upload className="h-4 w-4 mr-2" />
                   )}
                   Importar {bulkImportData.length} Usuário(s)
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ── Dialog de Reenvio em Massa ── */}
+        <Dialog open={showBulkResetDialog} onOpenChange={(open) => {
+          if (!bulkResetting) {
+            setShowBulkResetDialog(open);
+            if (!open) {
+              setBulkResetResults(null);
+              setBulkResetProgress(0);
+            }
+          }
+        }}>
+          <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Reenviar Acesso em Massa</DialogTitle>
+              <DialogDescription>
+                Gera nova senha e envia email com credenciais. Delay de 1s entre envios.
+              </DialogDescription>
+            </DialogHeader>
+
+            {!bulkResetting && !bulkResetResults && (
+              <div className="space-y-4">
+                {/* Tabs para escolher modo */}
+                <div className="flex gap-2 border-b pb-2">
+                  <Button
+                    variant={bulkResetMode === 'recent' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setBulkResetMode('recent')}
+                  >
+                    <Users className="h-4 w-4 mr-1" />
+                    Últimos N usuários
+                  </Button>
+                  <Button
+                    variant={bulkResetMode === 'paste' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setBulkResetMode('paste')}
+                  >
+                    <Mail className="h-4 w-4 mr-1" />
+                    Colar Emails
+                  </Button>
+                </div>
+
+                {bulkResetMode === 'recent' && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label htmlFor="bulkResetCount">Quantidade de usuários (mais recentes)</Label>
+                      <Input
+                        id="bulkResetCount"
+                        type="number"
+                        min={1}
+                        max={users.length}
+                        value={bulkResetCount}
+                        onChange={(e) => setBulkResetCount(Math.min(Number(e.target.value) || 1, users.length))}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Total disponível: {users.length} usuários
+                      </p>
+                    </div>
+                    {bulkResetPreviewUsers.length > 0 && (
+                      <div className="border rounded-md max-h-[300px] overflow-y-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>#</TableHead>
+                              <TableHead>Nome</TableHead>
+                              <TableHead>Email</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {bulkResetPreviewUsers.map((u, idx) => (
+                              <TableRow key={u.id}>
+                                <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+                                <TableCell>{u.profile?.full_name || '-'}</TableCell>
+                                <TableCell className="text-xs">{u.email}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {bulkResetMode === 'paste' && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label>Cole os emails (um por linha, ou separados por vírgula)</Label>
+                      <textarea
+                        className="min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        placeholder={"email1@example.com\nemail2@example.com\nemail3@example.com"}
+                        value={pastedEmails}
+                        onChange={(e) => setPastedEmails(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {parsedPastedEmails.length} email(s) válido(s) detectado(s)
+                      </p>
+                    </div>
+                    {parsedPastedEmails.length > 0 && (
+                      <div className="border rounded-md max-h-[200px] overflow-y-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>#</TableHead>
+                              <TableHead>Email</TableHead>
+                              <TableHead>Cadastrado?</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {parsedPastedEmails.map((email, idx) => {
+                              const found = users.find(u => u.email.toLowerCase() === email);
+                              return (
+                                <TableRow key={idx}>
+                                  <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+                                  <TableCell className="text-xs">{email}</TableCell>
+                                  <TableCell>
+                                    {found ? (
+                                      <Badge variant="default" className="text-xs"><CheckCircle className="h-3 w-3 mr-1" />Sim</Badge>
+                                    ) : (
+                                      <Badge variant="secondary" className="text-xs"><AlertCircle className="h-3 w-3 mr-1" />Novo</Badge>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {bulkResetting && (
+              <div className="space-y-4 py-4">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                  <p className="text-sm font-medium">
+                    Reenviando credenciais... {bulkResetProgress}/{bulkResetTotal}
+                  </p>
+                </div>
+                <Progress value={bulkResetTotal > 0 ? (bulkResetProgress / bulkResetTotal) * 100 : 0} />
+                <p className="text-xs text-muted-foreground text-center">
+                  Tempo restante estimado: ~{Math.ceil((bulkResetTotal - bulkResetProgress))} segundos
+                </p>
+              </div>
+            )}
+
+            {bulkResetResults && (
+              <div className="space-y-4">
+                <div className="flex gap-4 justify-center">
+                  <Badge variant="default" className="text-sm">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    {bulkResetResults.filter(r => r.success).length} sucesso
+                  </Badge>
+                  {bulkResetResults.filter(r => !r.success).length > 0 && (
+                    <Badge variant="destructive" className="text-sm">
+                      <XCircle className="h-3 w-3 mr-1" />
+                      {bulkResetResults.filter(r => !r.success).length} erros
+                    </Badge>
+                  )}
+                </div>
+
+                {bulkResetResults.filter(r => !r.success).length > 0 && (
+                  <div className="border rounded-md max-h-[200px] overflow-y-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Erro</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {bulkResetResults.filter(r => !r.success).map((r, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="text-xs">{r.email}</TableCell>
+                            <TableCell className="text-xs text-destructive">{r.error}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowBulkResetDialog(false);
+                  setBulkResetResults(null);
+                }}
+                disabled={bulkResetting}
+              >
+                {bulkResetResults ? 'Fechar' : 'Cancelar'}
+              </Button>
+              {!bulkResetResults && bulkResetMode === 'recent' && (
+                <Button
+                  onClick={handleBulkReset}
+                  disabled={bulkResetting || bulkResetPreviewUsers.length === 0}
+                >
+                  {bulkResetting ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  Reenviar para {bulkResetPreviewUsers.length} Usuário(s)
+                </Button>
+              )}
+              {!bulkResetResults && bulkResetMode === 'paste' && (
+                <Button
+                  onClick={handleBulkResetFromPaste}
+                  disabled={bulkResetting || parsedPastedEmails.length === 0}
+                >
+                  {bulkResetting ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  Reenviar para {parsedPastedEmails.length} Email(s)
+                </Button>
+              )}
+              {bulkResetResults && bulkResetResults.filter(r => !r.success).length > 0 && (
+                <Button onClick={handleRetryFailed} disabled={bulkResetting}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Reenviar para {bulkResetResults.filter(r => !r.success).length} Falho(s)
                 </Button>
               )}
             </DialogFooter>

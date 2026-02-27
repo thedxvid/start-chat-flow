@@ -57,12 +57,13 @@ interface Message {
   content: string;
   sender: 'user' | 'ai';
   timestamp: Date;
+  image?: string;
 }
 
 interface ChatAreaProps {
   conversationId?: string;
   messages: Message[];
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string, image?: string) => void;
   isTyping?: boolean;
   isSidebarOpen?: boolean;
   onToggleSidebar?: () => void;
@@ -291,6 +292,13 @@ export function ChatArea({
                             : 'bg-card border border-border/50 text-foreground rounded-bl-md'
                             } ${!isFirst ? (message.sender === 'user' ? 'rounded-tr-md' : 'rounded-tl-md') : ''}`}
                         >
+                          {message.image && (
+                            <img
+                              src={message.image}
+                              alt="Imagem anexada"
+                              className="max-w-full rounded-lg mb-2 max-h-[200px] object-cover"
+                            />
+                          )}
                           <div className="text-sm leading-relaxed">
                             {message.sender === 'ai'
                               ? formatMessage(message.content)

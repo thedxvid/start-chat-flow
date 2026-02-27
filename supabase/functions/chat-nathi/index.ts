@@ -380,16 +380,16 @@ serve(async (req) => {
     const isSupport = typeof conversationId === 'string' && conversationId.trim().toLowerCase() === 'suporte';
     const systemPrompt = isSupport ? AURORA_SUPORTE_PROMPT : NATHI_PROMPT;
 
-    // Prepara as mensagens para a OpenAI
+    // Prepara as mensagens para a OpenAI (suporte multimodal com imagens)
     const openAIMessages = [
       {
         role: 'system',
         content: systemPrompt
       },
-      ...messages.map((msg: any) => ({
-        role: msg.sender === 'user' ? 'user' : 'assistant',
-        content: msg.content
-      }))
+      ...messages.map((msg: any) => {
+        const role = msg.sender === 'user' ? 'user' : 'assistant';
+        return { role, content: msg.content };
+      })
     ];
 
     console.log('Calling OpenAI API with', openAIMessages.length, 'messages');

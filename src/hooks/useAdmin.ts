@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuthSimple';
-import { sendWelcomeEmail, sendAdminNotification } from '@/lib/resend';
+
 
 interface UserWithProfile {
   id: string;
@@ -46,6 +46,13 @@ export function useAdmin() {
     checkAdminStatus();
   }, [user]);
 
+  // Auto-carregar usuários quando isAdmin for true
+  useEffect(() => {
+    if (isAdmin && !loading) {
+      fetchUsers();
+    }
+  }, [isAdmin, loading]);
+
   const checkAdminStatus = async () => {
     if (!user) {
       setIsAdmin(false);
@@ -85,13 +92,6 @@ export function useAdmin() {
 
       await fetchUsers();
 
-      // Notificar admin sobre nova promoção
-      await sendAdminNotification('Usuário promovido a admin', {
-        promotedEmail: email,
-        promotedBy: user?.email,
-        timestamp: new Date().toISOString()
-      });
-
       return { success: true };
     } catch (error) {
       console.error('Error making user admin:', error);
@@ -104,94 +104,108 @@ export function useAdmin() {
       console.log('🚀 Iniciando criação de usuário:', userData);
 
       // Gerar senha temporária robusta (evitando caracteres ambíguos)
-      const generatePassword = () => {
-        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-        let result = "START-";
-        for (let i = 0; i < 8; i++) {
-          result += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return result + "!";
-      };
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let code = '';
+      for (let i = 0; i < 8; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+      const tempPassword = 'START-' + code + '!';
 
-      const tempPassword = generatePassword();
       const normalizedEmail = userData.email.trim().toLowerCase();
 
       console.log('📤 Chamando Edge Function send-user-credentials para:', normalizedEmail);
 
-      // Criar usuário diretamente via Edge Function
-      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-user-credentials', {
-        body: {
-          email: normalizedEmail,
-          fullName: userData.fullName.trim(),
-          tempPassword: tempPassword,
-          role: userData.role || 'user',
-          planType: userData.planType || 'free'
-        }
-      });
+      // Usar fetch direto com timeout para evitar hang infinito
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-      console.log('📨 Resposta da Edge Function:', { emailData, emailError });
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token || '';
+
+      let fetchRes: Response;
+      try {
+        fetchRes = await fetch('https://wpqthkvidfmjyroaijiq.supabase.co/functions/v1/send-user-credentials', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndwcXRoa3ZpZGZtanlyb2FpamlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI5NTk2MzQsImV4cCI6MjA2ODUzNTYzNH0.3HdTw587IUP-Y-QR59qMuijAzlqk9ifiZq_bP14hcjc',
+          },
+          body: JSON.stringify({
+            email: userData.email,
+            fullName: userData.fullName,
+            tempPassword: tempPassword,
+            role: userData.role || 'user',
+            planType: userData.planType || 'premium'
+          }),
+          signal: controller.signal,
+        });
+      } catch (fetchErr: any) {
+        clearTimeout(timeoutId);
+        if (fetchErr.name === 'AbortError') {
+          throw new Error('Tempo limite excedido ao criar usuário. Verifique se a Edge Function está ativa.');
+        }
+        throw new Error(`Erro de rede ao chamar Edge Function: ${fetchErr.message}`);
+      }
+      clearTimeout(timeoutId);
+
+      const emailData = await fetchRes.json().catch(() => null);
+      const emailError = fetchRes.ok ? null : { message: `HTTP ${fetchRes.status}: ${emailData?.error || 'Erro desconhecido'}` };
+
+      console.log('📨 Resposta da Edge Function:', { emailData, emailError, status: fetchRes.status });
+
+      // Parse response if it came back as string
+      let parsedData = emailData;
+      if (typeof emailData === 'string') {
+        try {
+          parsedData = JSON.parse(emailData);
+        } catch {
+          console.error('❌ Resposta não é JSON válido:', emailData);
+          throw new Error('Resposta inválida da função de criação');
+        }
+      }
+
+      console.log('📨 Dados parseados:', parsedData);
 
       // Verificar se houve erro na chamada da função
       if (emailError) {
         console.error('❌ Erro detalhado da Edge Function:', emailError);
-
-        // Tentar extrair mensagem do corpo se for um FunctionsHttpError
-        let errorMsg = emailError.message;
-        try {
-          if (emailError instanceof Error && 'context' in emailError) {
-            const context = (emailError as any).context;
-            if (context && typeof context.json === 'function') {
-              const errorBody = await context.json();
-              if (errorBody && errorBody.error) errorMsg = errorBody.error;
-              if (errorBody && errorBody.details) console.error('🔍 Detalhes do erro:', errorBody.details);
-            }
-          }
-        } catch (e) {
-          console.error('Erro ao ler corpo do erro:', e);
-        }
-
-        // Tratamento específico para erro 409 (conflito - usuário já existe)
-        if (errorMsg.includes('409') || errorMsg.includes('já existe') || errorMsg.includes('already registered')) {
+        if (emailError.message?.includes('409') || emailError.message?.includes('Conflict') || emailError.message?.includes('já existe') || emailError.message?.includes('already registered')) {
           throw new Error(`O e-mail ${userData.email} já está registrado ou em processo de limpeza. Tente novamente em instantes.`);
         }
-
-        throw new Error(`Erro: ${errorMsg}`);
+        throw new Error(`Erro ao criar usuário: ${emailError.message}`);
       }
 
       // Verificar se a resposta existe
-      if (!emailData) {
+      if (!parsedData) {
         console.error('❌ Resposta vazia da Edge Function');
         throw new Error('Resposta vazia da função de criação');
       }
 
       // Verificar se houve erro na resposta da função
-      if (emailData.error) {
-        console.error('❌ Erro retornado pela Edge Function:', emailData.error);
-
-        if (emailData.error.includes('já existe') || emailData.error.includes('already exists')) {
+      if (parsedData.error) {
+        console.error('❌ Erro retornado pela Edge Function:', parsedData.error);
+        if (parsedData.error.includes('já existe') || parsedData.error.includes('already exists')) {
           throw new Error(`Email ${userData.email} já está registrado no sistema`);
         }
-
-        throw new Error(emailData.error);
+        throw new Error(parsedData.error);
       }
 
       // Verificar se foi bem-sucedido
-      if (!emailData.success) {
-        console.error('❌ Falha na Edge Function:', emailData);
+      if (!parsedData.success) {
+        console.error('❌ Falha na Edge Function:', parsedData);
         throw new Error('Falha na criação do usuário');
       }
 
-      console.log('✅ Usuário criado e email enviado com sucesso:', emailData);
+      console.log('✅ Usuário criado e email enviado com sucesso:', parsedData);
 
       // Atualizar lista de usuários
       await fetchUsers();
 
       return {
         success: true,
-        message: emailData.warning
-          ? `Usuário criado com sucesso! ${emailData.warning}. Credenciais: ${userData.email} / ${tempPassword}`
+        message: parsedData.warning
+          ? `Usuário criado com sucesso! ${parsedData.warning}. Credenciais: ${userData.email} / ${tempPassword}`
           : `Usuário criado com sucesso! As credenciais foram enviadas para ${userData.email}`,
-        userId: emailData.userId,
+        userId: parsedData.userId,
         tempPassword: tempPassword
       };
     } catch (error) {
@@ -202,25 +216,37 @@ export function useAdmin() {
 
   const deleteUser = async (userId: string, userEmail: string) => {
     try {
-      const { error } = await supabase.auth.admin.deleteUser(userId);
+      console.log('🗑️ Excluindo usuário via Edge Function cleanup-users:', userEmail);
+
+      const { data, error } = await supabase.functions.invoke('cleanup-users', {
+        body: { action: 'cleanup_incomplete', email: userEmail }
+      });
 
       if (error) {
-        throw error;
+        console.error('❌ Erro na Edge Function cleanup-users:', error);
+        throw new Error(error.message || 'Erro ao excluir usuário');
       }
 
-      // Notificar admin sobre exclusão de usuário
-      await sendAdminNotification('Usuário excluído', {
-        deletedUser: {
-          id: userId,
-          email: userEmail
-        },
-        deletedBy: user?.email,
-        timestamp: new Date().toISOString()
-      });
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      console.log('✅ Usuário excluído do Auth:', data);
+
+      // Limpar registros locais para garantir remoção da lista
+      // (caso o Auth já tenha sido removido mas profiles/subs permaneçam)
+      try {
+        await supabase.from('subscriptions').delete().eq('user_id', userId);
+        await supabase.from('user_roles').delete().eq('user_id', userId);
+        await supabase.from('profiles').delete().eq('user_id', userId);
+        console.log('✅ Registros auxiliares removidos para:', userId);
+      } catch (cleanErr) {
+        console.warn('⚠️ Erro ao limpar registros auxiliares (não crítico):', cleanErr);
+      }
 
       await fetchUsers();
       return { success: true };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting user:', error);
       return { success: false, error: error.message };
     }
@@ -256,17 +282,6 @@ export function useAdmin() {
             expires_at: expirationDate.toISOString()
           });
       }
-
-      // Notificar admin sobre mudança de assinatura
-      await sendAdminNotification('Assinatura atualizada', {
-        user: {
-          id: userId,
-          email: userEmail
-        },
-        newPlan: planType,
-        updatedBy: user?.email,
-        timestamp: new Date().toISOString()
-      });
 
       await fetchUsers();
       return { success: true };
@@ -381,19 +396,13 @@ export function useAdmin() {
   // Função para reenviar email de boas-vindas
   const resendWelcomeEmail = async (email: string, fullName: string) => {
     try {
-      const result = await sendWelcomeEmail(email, fullName);
-
-      if (result.success) {
-        // Notificar admin sobre reenvio
-        await sendAdminNotification('Email de boas-vindas reenviado', {
-          recipient: email,
-          resentBy: user?.email,
-          timestamp: new Date().toISOString()
-        });
-      }
-
-      return result;
-    } catch (error) {
+      const { data, error } = await supabase.functions.invoke('send-user-credentials', {
+        body: { email, fullName, tempPassword: '', mode: 'resend' }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return { success: true };
+    } catch (error: any) {
       console.error('Error resending welcome email:', error);
       return { success: false, error: error.message };
     }
@@ -451,7 +460,7 @@ export function useAdmin() {
           email: userData.email,
           fullName: userData.fullName,
           role: userData.role || 'user',
-          planType: userData.planType || 'free',
+          planType: userData.planType || 'premium',
         });
         results.push({ email: userData.email, success: true });
       } catch (error: any) {
@@ -471,6 +480,130 @@ export function useAdmin() {
     return results;
   };
 
+  // Função para reenviar acesso (resetar senha e enviar novo email)
+  // Usa fetch direto com timeout + fallback automático para resend-credentials
+  const resetUserCredentials = async (email: string, fullName: string, planType?: string) => {
+    try {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = '';
+      for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+      const newPassword = 'START-' + code;
+
+      // Normalizar inputs
+      const safeName = (fullName || '').trim() || 'Usuário';
+      const safePlan = ['free', 'premium', 'pro'].includes(planType || '') ? planType! : 'premium';
+
+      console.log('📤 Reenviando credenciais para:', email, '| nome:', safeName, '| plano:', safePlan);
+
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token || '';
+      const SUPABASE_URL = 'https://wpqthkvidfmjyroaijiq.supabase.co';
+      const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndwcXRoa3ZpZGZtanlyb2FpamlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI5NTk2MzQsImV4cCI6MjA2ODUzNTYzNH0.3HdTw587IUP-Y-QR59qMuijAzlqk9ifiZq_bP14hcjc';
+
+      const payload = JSON.stringify({
+        email,
+        fullName: safeName,
+        tempPassword: newPassword,
+        role: 'user',
+        planType: safePlan,
+        mode: 'reset'
+      });
+
+      const fetchHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+        'apikey': ANON_KEY,
+      };
+
+      // Helper: chamar uma função com timeout de 30s
+      const callFunction = async (fnName: string): Promise<{ ok: boolean; data: any; status: number; raw: string }> => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        try {
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
+            method: 'POST',
+            headers: fetchHeaders,
+            body: payload,
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          const raw = await res.text();
+          let parsed: any = null;
+          try { parsed = JSON.parse(raw); } catch { parsed = { raw }; }
+          console.log(`📥 ${fnName} respondeu:`, res.status, raw.substring(0, 200));
+          return { ok: res.ok, data: parsed, status: res.status, raw };
+        } catch (err: any) {
+          clearTimeout(timeoutId);
+          if (err.name === 'AbortError') {
+            return { ok: false, data: { error: 'Timeout (30s)' }, status: 0, raw: 'timeout' };
+          }
+          return { ok: false, data: { error: err.message }, status: 0, raw: err.message };
+        }
+      };
+
+      // Tentar função primária
+      let result = await callFunction('send-user-credentials');
+
+      // Se falhou, tentar fallback
+      if (!result.ok && !result.data?.success) {
+        console.warn('⚠️ send-user-credentials falhou, tentando resend-credentials como fallback...');
+        result = await callFunction('resend-credentials');
+      }
+
+      // Avaliar resultado final
+      if (result.data?.success) {
+        const warning = result.data.warning ? ` (${result.data.warning})` : '';
+        return {
+          success: true,
+          message: `Nova senha enviada para ${email}${warning}`,
+          tempPassword: newPassword
+        };
+      }
+
+      // Ambas falharam
+      const errorDetail = result.data?.error || result.data?.details || `HTTP ${result.status}`;
+      throw new Error(errorDetail);
+    } catch (error: any) {
+      console.error('❌ Erro ao reenviar credenciais:', error);
+      return { success: false, error: error.message || 'Erro ao reenviar credenciais', message: error.message || 'Erro ao reenviar credenciais', tempPassword: '' };
+    }
+  };
+
+  // Função para reenviar credenciais em massa
+  const bulkResetCredentials = async (
+    usersList: Array<{ email: string; fullName: string; planType?: string }>,
+    onProgress?: (current: number, total: number) => void
+  ) => {
+    const results: Array<{ email: string; success: boolean; error?: string }> = [];
+
+    for (let i = 0; i < usersList.length; i++) {
+      const userData = usersList[i];
+      try {
+        const result = await resetUserCredentials(userData.email, userData.fullName, userData.planType);
+        if (result.success) {
+          results.push({ email: userData.email, success: true });
+        } else {
+          results.push({ email: userData.email, success: false, error: result.error });
+        }
+      } catch (error: any) {
+        results.push({
+          email: userData.email,
+          success: false,
+          error: error.message || 'Erro desconhecido',
+        });
+      }
+
+      onProgress?.(i + 1, usersList.length);
+      // Delay de 1s para respeitar rate limits do Resend
+      if (i < usersList.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    await fetchUsers();
+    return results;
+  };
+
   return {
     isAdmin,
     loading,
@@ -484,6 +617,8 @@ export function useAdmin() {
     fetchUsers,
     resendWelcomeEmail,
     cleanupIncompleteUsers,
-    bulkCreateUsers
+    bulkCreateUsers,
+    resetUserCredentials,
+    bulkResetCredentials
   };
 }

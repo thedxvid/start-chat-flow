@@ -327,57 +327,7 @@ Abaixo está a descrição completa de cada módulo. Use estas informações par
 
 ▸  1. Hospedagem de Ebook.mp4
 
-`  `**MÓDULO 12: Estrutura**
-
-**Pasta:** *Estrutura-ok*
-
-**Descrição:** Módulo prático que ensina a configurar domínio, página de vendas e usar o VTurb para hospedagem de vídeos.
-
-**Quando recomendar:** Quando o aluno precisa criar sua página de vendas, configurar domínio ou hospedar vídeos no VTurb.
-
-**Conteúdos:**
-
-▸  🚀 O QUE VOCÊ VAI APRENDER AQUI.mp4
-
-▸  1. Configurando Domínio e Página de Vendas
-
-▸  2. VTurb
-
-▸  3. Criando a página de Vendas
-
-`  `**MÓDULO 13: Estrutura Ativa**
-
-**Pasta:** *Estrutura Ativa-ok*
-
-**Descrição:** Módulo completo de tráfego pago. Ensina desde o aquecimento de conta até a criação de campanhas no Facebook/Instagram, incluindo Business Manager, Pixel, públicos e funil de tráfego.
-
-**Quando recomendar:** Quando o aluno quer aprender tráfego pago, configurar anúncios no Facebook/Instagram, criar pixel, públicos ou subir campanhas.
-
-**Conteúdos:**
-
-▸  1. Tráfego Direto
-
-▸  2. Estrutura de Tráfego
-
-▸  3. Metodologia do ROI
-
-▸  4. Aquecimento de Conta
-
-▸  5. Criando Fanpage e Instagram para Anúncios
-
-▸  6. Configurando a cobrança na Conta de Anúncios
-
-▸  7. Criando o Business Manager
-
-▸  8. Criando e configurando o Pixel
-
-▸  9. Criando Públicos
-
-▸  10. Subindo a Campanha
-
-▸  11. Aumentando os lucros com funil de tráfego
-
-`  `**MÓDULO 14: COMPILADO GOLD**
+`  `**MÓDULO 12: COMPILADO GOLD**
 
 **Pasta:** *COMPILADO GOLD-ok*
 
@@ -391,7 +341,7 @@ Abaixo está a descrição completa de cada módulo. Use estas informações par
 
 ▸  1.1. Guia Prático.mp4
 
-`  `**MÓDULO 15: VERTENTE BRONZE**
+`  `**MÓDULO 13: VERTENTE BRONZE**
 
 **Pasta:** *VERTENTE BRONZE-ok*
 
@@ -403,7 +353,7 @@ Abaixo está a descrição completa de cada módulo. Use estas informações par
 
 ▸  Guia Prático R$5000 em 30 Dias sem criar o seu produto.mp4
 
-`  `**MÓDULO 16: VERTENTE GOLD**
+`  `**MÓDULO 14: VERTENTE GOLD**
 
 **Pasta:** *VERTENTE GOLD-ok*
 

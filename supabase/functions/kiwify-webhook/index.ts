@@ -1,3 +1,4 @@
+// kiwify-webhook v9 - redeploy para consistencia
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -53,41 +54,105 @@ async function sendAccessCodeEmail(email: string, name: string, accessCode: stri
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Seu Código de Acesso - Sistema Start</title>
+  <meta name="color-scheme" content="light" />
 </head>
-<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,sans-serif;color:#333333;">
-  <div style="max-width:600px;margin:20px auto;background-color:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 4px 10px rgba(0,0,0,0.1);">
-    <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:30px;text-align:center;color:#ffffff;">
-      <h1 style="margin:0;font-size:24px;">🚀 Bem-vindo ao Sistema Start!</h1>
-    </div>
-    <div style="padding:30px;">
-      <h2 style="margin:0 0 20px 0;font-size:18px;">Olá, ${name}!</h2>
-      <p style="margin-bottom:20px;line-height:1.6;"><strong>Parabéns!</strong> Seu pagamento foi confirmado. Agora você tem acesso completo ao sistema.</p>
-      
-      <div style="background-color:#f0f0ff;border:2px solid #667eea;border-radius:10px;padding:25px;text-align:center;margin-bottom:25px;">
-        <p style="margin:0 0 10px 0;color:#667eea;font-weight:bold;">🔑 Seu Código de Acesso:</p>
-        <div style="background-color:#667eea;color:#ffffff;padding:15px;border-radius:8px;font-family:monospace;font-size:24px;font-weight:bold;letter-spacing:2px;display:inline-block;">${accessCode}</div>
-        <p style="color:#666;font-size:12px;margin-top:10px;">⚠️ Guarde este código. Você precisará dele para criar sua conta.</p>
-      </div>
+<body style="margin:0;padding:0;background-color:#f5f5f0;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;color:#1a1a1a;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#f5f5f0;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" role="presentation" style="max-width:560px;width:100%;">
 
-      <div style="margin-bottom:25px;">
-        <h3 style="font-size:16px;margin-bottom:10px;">📋 Como acessar:</h3>
-        <ol style="line-height:1.8;padding-left:20px;">
-          <li>Acesse: <a href="https://sistemastart.com/auth" style="color:#667eea;">sistemastart.com/auth</a></li>
-          <li>Clique na aba <strong>"Cadastrar"</strong></li>
-          <li>Insira seu código: <strong>${accessCode}</strong></li>
-          <li>Finalize seu cadastro!</li>
-        </ol>
-      </div>
+        <!-- Logo -->
+        <tr>
+          <td align="center" style="padding-bottom:32px;">
+            <table cellpadding="0" cellspacing="0" role="presentation">
+              <tr>
+                <td style="background-color:#c9a84c;border-radius:14px;padding:12px 24px;">
+                  <span style="font-size:15px;font-weight:700;letter-spacing:0.5px;color:#ffffff;">Sistema Start</span>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:16px 0 0 0;font-size:12px;color:#8a8a8a;letter-spacing:0.3px;">by Nathalia Ouro</p>
+          </td>
+        </tr>
 
-      <div style="text-align:center;margin-top:30px;">
-        <a href="https://sistemastart.com/auth" style="background:#667eea;color:#ffffff;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block;">🚀 Acessar Sistema Agora</a>
-      </div>
-    </div>
-    <div style="background-color:#333;color:#999;padding:15px;text-align:center;font-size:12px;">
-      Sistema Start - Mentoria Expert em Marketing Digital
-    </div>
-  </div>
+        <!-- Card -->
+        <tr>
+          <td style="background-color:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.06);">
+            <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+              <tr><td style="height:4px;background-color:#c9a84c;font-size:4px;line-height:4px;">&nbsp;</td></tr>
+
+              <tr><td style="padding:48px 48px 16px 48px;">
+                <table cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom:28px;">
+                  <tr><td style="width:52px;height:52px;background-color:#faf5e9;border-radius:14px;text-align:center;vertical-align:middle;">
+                    <span style="font-size:24px;line-height:52px;display:block;">🚀</span>
+                  </td></tr>
+                </table>
+
+                <h1 style="margin:0 0 12px 0;font-size:26px;font-weight:700;letter-spacing:-0.5px;color:#1a1a1a;line-height:1.2;">Bem-vindo ao Sistema Start!</h1>
+                <p style="margin:0 0 8px 0;font-size:16px;color:#666666;line-height:1.6;">
+                  Olá, <strong style="color:#1a1a1a;">${name}</strong>! 🎉 Seu pagamento foi confirmado com sucesso!
+                </p>
+                <p style="margin:0 0 28px 0;font-size:16px;color:#666666;line-height:1.6;">
+                  Agora você tem acesso completo ao sistema. Use o código abaixo para criar sua conta.
+                </p>
+
+                <!-- Access Code Box -->
+                <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom:28px;">
+                  <tr><td style="background-color:#faf5e9;border:1px solid #e8dcc0;border-radius:12px;padding:24px;text-align:center;">
+                    <p style="margin:0 0 12px 0;font-size:14px;color:#8a6a1a;font-weight:600;">🔑 Seu Código de Acesso</p>
+                    <table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;">
+                      <tr><td style="background-color:#c9a84c;color:#ffffff;padding:14px 28px;border-radius:10px;font-family:monospace,'Courier New',monospace;font-size:22px;font-weight:700;letter-spacing:3px;">${accessCode}</td></tr>
+                    </table>
+                    <p style="margin:14px 0 0 0;font-size:12px;color:#8a6a1a;">Guarde este código com segurança</p>
+                  </td></tr>
+                </table>
+
+                <!-- Steps -->
+                <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom:28px;">
+                  <tr><td style="padding:0;">
+                    <p style="margin:0 0 12px 0;font-size:15px;font-weight:600;color:#1a1a1a;">📋 Como acessar:</p>
+                    <table cellpadding="0" cellspacing="0" role="presentation">
+                      <tr><td style="padding:4px 0;font-size:14px;color:#666666;line-height:1.7;">1. Acesse <a href="https://sistemastart.com/auth" style="color:#c9a84c;font-weight:600;text-decoration:none;">sistemastart.com/auth</a></td></tr>
+                      <tr><td style="padding:4px 0;font-size:14px;color:#666666;line-height:1.7;">2. Clique em <strong style="color:#1a1a1a;">"Cadastrar"</strong></td></tr>
+                      <tr><td style="padding:4px 0;font-size:14px;color:#666666;line-height:1.7;">3. Insira o código: <strong style="color:#1a1a1a;">${accessCode}</strong></td></tr>
+                      <tr><td style="padding:4px 0;font-size:14px;color:#666666;line-height:1.7;">4. Preencha seus dados e comece a usar!</td></tr>
+                    </table>
+                  </td></tr>
+                </table>
+
+                <!-- CTA Button -->
+                <table cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom:28px;" width="100%">
+                  <tr><td align="center">
+                    <a href="https://sistemastart.com/auth" style="display:inline-block;padding:14px 40px;background-color:#c9a84c;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;border-radius:12px;letter-spacing:0.2px;">Acessar o Sistema &rarr;</a>
+                  </td></tr>
+                </table>
+              </td></tr>
+
+              <!-- Tip -->
+              <tr><td style="padding:0 48px 40px 48px;">
+                <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                  <tr><td style="background-color:#faf5e9;border-radius:12px;padding:16px 20px;">
+                    <p style="margin:0;font-size:13px;color:#8a6a1a;line-height:1.6;">
+                      💡 Após criar sua conta, você terá acesso ilimitado à nossa mentora expert em marketing digital.
+                    </p>
+                  </td></tr>
+                </table>
+              </td></tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:32px 0 0 0;text-align:center;">
+            <p style="margin:0 0 6px 0;font-size:13px;color:#aaaaaa;">Sistema Start by Nathalia Ouro</p>
+            <p style="margin:0;font-size:12px;color:#bbbbbb;">Este é um email automático. Por favor, não responda.</p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
 </body>
 </html>`,
       }),
