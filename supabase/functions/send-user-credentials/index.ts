@@ -19,7 +19,7 @@ Deno.serve(async (req: Request) => {
     const planType: string = body.planType || 'premium';
     const mode: string = body.mode || 'create';
 
-    console.log("🚀 send-user-credentials v7 |", email, "| modo:", mode);
+    console.log("🚀 send-user-credentials v9 |", email, "| modo:", mode);
 
     if (!email || !fullName || !tempPassword) {
       return new Response(JSON.stringify({ error: 'Campos obrigatórios faltando' }), { status: 400, headers });

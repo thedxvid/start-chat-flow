@@ -19,7 +19,7 @@ Deno.serve(async (req: Request) => {
     const planType: string = body.planType || 'premium';
     const mode: string = body.mode || 'create';
 
-    console.log("🚀 resend-credentials v7 |", email, "| modo:", mode);
+    console.log("🚀 resend-credentials v9 |", email, "| modo:", mode);
 
     if (!email || !fullName || !tempPassword) {
       return new Response(JSON.stringify({ error: 'Campos obrigatórios faltando' }), { status: 400, headers });
@@ -331,7 +331,7 @@ Deno.serve(async (req: Request) => {
         return new Response(JSON.stringify({ success: true, userId, warning: 'Email falhou mas credenciais atualizadas' }), { status: 200, headers });
       }
 
-      console.log("✅ resend-credentials v8 OK:", email, userId, emailData.id);
+      console.log("✅ resend-credentials v9 OK:", email, userId, emailData.id);
       return new Response(JSON.stringify({ success: true, userId, emailId: emailData.id }), { status: 200, headers });
     } catch (e) {
       console.error("⚠️ Erro ao enviar email (retornando sucesso parcial):", e);
@@ -340,7 +340,7 @@ Deno.serve(async (req: Request) => {
 
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error("💥 resend-credentials v7 erro fatal:", msg);
+    console.error("💥 resend-credentials v9 erro fatal:", msg);
     return new Response(JSON.stringify({ error: 'Erro interno', details: msg }), { status: 500, headers });
   }
 });
