@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/hooks/useAdmin';
-import { supabase } from '@/integrations/supabase/client';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,8 +40,7 @@ import {
   Upload,
   FileSpreadsheet,
   Download,
-  Search,
-  RefreshCw
+  Search
 } from 'lucide-react';
 
 export function Admin() {
@@ -73,9 +72,6 @@ export function Admin() {
   const [bulkImportResults, setBulkImportResults] = useState<Array<{ email: string; success: boolean; error?: string }> | null>(null);
   const [bulkImportProgress, setBulkImportProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-<<<<<<< HEAD
-  const [resendingUserId, setResendingUserId] = useState<string | null>(null);
-=======
   const [searchQuery, setSearchQuery] = useState('');
   const [resendingAccess, setResendingAccess] = useState<string | null>(null);
   const [showBulkResetDialog, setShowBulkResetDialog] = useState(false);
@@ -86,7 +82,6 @@ export function Admin() {
   const [bulkResetResults, setBulkResetResults] = useState<Array<{ email: string; success: boolean; error?: string }> | null>(null);
   const [bulkResetMode, setBulkResetMode] = useState<'recent' | 'paste'>('recent');
   const [pastedEmails, setPastedEmails] = useState('');
->>>>>>> 8f91f6eebb11948f55e43810191438dce55df35a
 
 
   // Form state for creating new user
@@ -194,37 +189,7 @@ export function Admin() {
     }
   };
 
-  const handleResendAccess = async (userId: string, email: string, fullName?: string) => {
-    setResendingUserId(userId);
-    try {
-      const { data, error } = await supabase.functions.invoke('resend-user-credentials', {
-        body: { email, fullName: fullName || '' }
-      });
 
-      if (error) {
-        // Tentar extrair mensagem de erro mais detalhada
-        let errorMsg = error.message;
-        try {
-          if ((error as any).context) {
-            const body = await (error as any).context.json();
-            if (body?.error) errorMsg = body.error;
-          }
-        } catch (_) { }
-        toast.error(`Erro ao reenviar: ${errorMsg}`);
-        return;
-      }
-
-      if (data?.warning) {
-        toast.warning(`Acesso reenviado com aviso: ${data.warning}`);
-      } else {
-        toast.success(`Novas credenciais enviadas para ${email}`);
-      }
-    } catch (err: any) {
-      toast.error(`Erro inesperado: ${err.message}`);
-    } finally {
-      setResendingUserId(null);
-    }
-  };
 
   const handleCleanupIncompleteUsers = async () => {
     const result = await cleanupIncompleteUsers();
@@ -528,9 +493,9 @@ export function Admin() {
 
   const filteredUsers = searchQuery.trim()
     ? users.filter(u =>
-        u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (u.profile?.full_name || '').toLowerCase().includes(searchQuery.toLowerCase())
-      )
+      u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (u.profile?.full_name || '').toLowerCase().includes(searchQuery.toLowerCase())
+    )
     : users;
 
   const adminUsers = users.filter(u => u.role === 'admin');
@@ -847,17 +812,6 @@ export function Admin() {
                               <Button
                                 variant="outline"
                                 size="sm"
-<<<<<<< HEAD
-                                className="h-8 px-2 text-xs gap-1"
-                                onClick={() => handleResendAccess(user.id, user.email, user.profile?.full_name)}
-                                disabled={resendingUserId === user.id}
-                                title="Reenviar credenciais de acesso"
-                              >
-                                {resendingUserId === user.id ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <RefreshCw className="h-3 w-3" />
-=======
                                 className="h-8 px-2 text-xs"
                                 disabled={resendingAccess === user.id}
                                 onClick={async () => {
@@ -879,7 +833,6 @@ export function Admin() {
                                   <Loader2 className="h-3 w-3 animate-spin mr-1" />
                                 ) : (
                                   <RefreshCw className="h-3 w-3 mr-1" />
->>>>>>> 8f91f6eebb11948f55e43810191438dce55df35a
                                 )}
                                 Reenviar
                               </Button>

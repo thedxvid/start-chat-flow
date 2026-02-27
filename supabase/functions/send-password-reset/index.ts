@@ -23,15 +23,10 @@ serve(async (req) => {
       });
     }
 
-<<<<<<< HEAD
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const SITE_URL = Deno.env.get('SITE_URL') || 'https://sistemastart.com';
-=======
-    try {
-        const { email } = await req.json();
->>>>>>> 8f91f6eebb11948f55e43810191438dce55df35a
 
     if (!RESEND_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       return new Response(JSON.stringify({ error: 'Configuração de servidor incompleta' }), {
@@ -58,24 +53,8 @@ serve(async (req) => {
       });
     }
 
-<<<<<<< HEAD
     const resetLink = linkData.properties.action_link;
     const resend = new Resend(RESEND_API_KEY);
-=======
-        // Segurança: nunca confiar em redirectTo vindo do cliente
-        // O link sempre aponta para a rota oficial de recuperação
-        const safeRedirectTo = `${SITE_URL}/auth`;
-
-        // Gerar o link de reset via Supabase Admin
-        const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-        const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-            type: 'recovery',
-            email,
-            options: {
-                redirectTo: safeRedirectTo,
-            },
-        });
->>>>>>> 8f91f6eebb11948f55e43810191438dce55df35a
 
     const emailHtml = `<!DOCTYPE html>
 <html lang="pt-BR">
