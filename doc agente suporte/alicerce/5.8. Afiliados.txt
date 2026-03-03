@@ -1,0 +1,19 @@
+Vamos agora a aba de afiliados. Suponhamos que o seu produto seja um produto de programa de afiliados. Então você vai habilitar esse programa e aqui você faz as configurações de acordo com o que você queira oferecer. 
+
+Por exemplo, aprovar cada solicitação de afiliação manualmente. Significa que quando você enviar um link de afiliação para algum aluno ou uma pessoa, você precisa aprovar manualmente a aprovação dessa pessoa dentro do seu projeto. Caso você queira trabalhar com um programa de afiliados, eu sugiro manter esta opção ligada.
+
+Receber notificação vimeio, não vejo necessidade, só vai encher sua caixa de meio mesmo, liberar acesso aos dados de contatos dos compradores, não sugiro mostrar o meu produto no Marketplace público. Aqui vai de opção também. Você pode permitir que somente alunos se tornen afiliados do seu produto ou tornar isso público. 
+
+Fica a seu critério. E meio de suporte para afiliados é importante você criar um e-mail separado do suporte de alunos, porque são demandas totalmente diferentes. Descrição para afiliados se você quiser fazer alguma recomendação, estipular regras aqui, referência anúncia, referência a venda, você coloca tudo aqui nesta caixa. 
+
+Comissão aqui você vai determinar quanto de porcentagem você quer oferecer ao seu afiliado. Por exemplo, eu já tive um produto com um programa de afiliados e eles tinham 60% inicialmente de comissão. A medida que eles realizavam venda e se tornavam destaque, eu aumentava para 75 ou 80% dependendo do desempenho ali do afiliado. 
+
+Então aqui também fica seu critério, mas uma comissão menor do que 50% eu já não recomendo, porque não é interessante. Aqui eu abri no navegador da própria QIFI para esclarecer para vocês os pontos também. Aqui em amarelo consta, se você habilitar a opção liberar acesso aos dados de contatos dos compradores, os afiliados terão acesso ao nome, email, telefone e CPF de cada venda que aquele afiliado recebeu uma respectiva comissão. 
+
+Então eu sugiro não habilitar essa opção. Aqui ele explica sobre o cálculo da comissão do afiliado com as taxas. Último clique é o primeiro clique. 
+
+Aqui ele explica, no modelo Último clique, a comissão será a paga para o afiliado que indicou o último clique no seu produto mesmo, que o produtor tenha clicado em algum outro link de afiliado anteriormente. É o que é recomendado. No modelo primeiro clique, a comissão será a paga para o afiliado que indicou o primeiro clique mesmo, que depois o comprador clique em outros links de afiliado levando ao seu produto. 
+
+Então, se a própria plataforma recomenda o último clique, eu sugiro que seja opção selecionada também. Posso oferecer coprodução a um afiliado? Não é possível estabelecer vínculo de coprodução com o afiliado em um mesmo produto e viceversa. Basicamente, aqui seria isso. 
+
+Eu vou deixar o link desta página que disponível na aba conteúdo até mesmo para você pesquisar a interessante também que faça dessa forma.

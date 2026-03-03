@@ -1,0 +1,219 @@
+Senhoras e senhores, como sempre, sejam muito bem-vindos a mais uma aula. E nessa aula nós vamos abordar um tema de fundamental importância, principalmente para quando você for partir para a construção do seu funil de tráfego, que é quando a gente vai fazer o remarketing e as vendas, especificamente, para o público que acessou a página e não comprou. Para isso, a gente precisa ter certos públicos criados, ok? Esses públicos vão tanto ajudar para fazer remarketing quanto, enfim, várias outras funções que você vai ver aqui na aula.
+
+Por exemplo, tem pessoas que te acompanham no Instagram, porque você não faz anúncios específicos para elas e coisas assim. Aqui eu vou te mostrar como atingir, especificamente, o tipo de pessoa que você quer, ok? Então, vamos começar aqui falando dos públicos importantes. O que são públicos? É um conglomerado de pessoas que você vai direcionar seus anúncios especificamente só para elas.
+
+Então, ao invés de mostrar seus anúncios para o Brasil todo, você pode mostrar anúncios só para quem acessou sua página de vendas, só para quem iniciou o checkout, só para quem comprou e marcou no Pixel, ou só para uma lista de compradores que você tem os e-mails dele e você sobe no Facebook, ou para os seguidores, engajamento, vi o vídeo. Eu vou te mostrar todas essas opções e tudo aqui do absoluto zero. O primeiro passo que a gente precisa é estar com nossa conta aqui aberta, sua conta de anúncios, né? facebook.com.br ads manager, já mostramos nas aulas anteriores.
+
+Você vai clicar aqui nos menus aqui do lado e você vai procurar o menu de públicos. Esse menu vai estar tanto aqui desse lado ou ele vai, possivelmente, aparecer no meio dessas opções aqui. E aí você vai procurando aqui em cima, acho que tem uma talha de todo tamanho aqui, públicos.
+
+Então, vamos abrir aqui o público, beleza? Logo depois de abrir os públicos, pessoal, é muito importante você selecionar de qual conta de anúncios você quer aqueles públicos. Então, se você tem várias contas de anúncios, se você trabalha com vários produtos, você vai selecionar a conta que você quer trabalhar, tá bom? Nesse caso, estamos com essa conta aqui aberta. E agora eu vou te ensinar como você vai criar esses conglomerados de pessoas do público.
+
+Então, vamos clicar aqui em criar público, público personalizado. E vamos começar criando o público de quem acessou a página, tá? Como é que a gente faz isso? Eu vou mostrar também como é que você vai usar esses públicos e tudo mais. Você vai clicar aqui em site, beleza? Aqui em site, você vai selecionar o pixel que você criou.
+
+Lembra que a gente criou um pixel nas aulas anteriores, que vai ser o que vai mostrar para a audiência certa o seu anúncio e tudo mais? Pois é, esse pixel você insere ele na página de vendas, ok? E na Hotmart ou na Kibify, na plataforma que você estiver indo usar. Então, aqui nesse caso, nós vamos pegar aqui o pixel, por exemplo, Marlene, ok? E aqui, pessoal, existem algumas diferentes eventos que a gente consegue fazer nesse pixel. Por exemplo, suponha que a gente tenha o mesmo pixel no site ml.com e no site ml2.com. Um exemplo aleatório aqui.
+
+Caso a gente quisesse selecionar apenas pessoas que acessaram o site ml.com, a gente vai colocar aqui o rlml.com. Então, como é que a gente segmenta? Páginas web específicas, ok? Então, sei lá, se você tiver que querer segmentar quem acessou a página barra, sei lá, ml.com barra aula 1, ok? Aí você vai escrever aqui. Só vai pegar quem acessou essa url aqui específica. Agora, geralmente, a gente costuma criar um público para todas as pessoas que acessaram o site.
+
+E aqui, pessoal, tem o tamanho do público. Por exemplo, se você colocar aqui 1 dia, significa que esse público vai ser de quem acessou o site nos últimos 1 dia. Se você colocar 7 dias, vai ser quem acessou em 7 dias.
+
+15 dias, vai ser quem acessou em 15 dias, 30 dias, por aí. Então, vamos aqui criar um público das pessoas que acessaram o site nos últimos 30 dias, ok? Depende de, por exemplo, é um produto novo, você vai colocar quem acessou nos últimos 30 dias. É um produto mais antigo, você está rodando mais um tempo, você vai colocar 180 dias.
+
+O limite é até 180 dias, tá? Então, aqui é quem acessou o site até 180 dias. Então, vamos colocar aqui, por exemplo, o público acessou o site Pixel Marline nos últimos 180 dias, beleza? Então, aqui, nós temos o nosso primeiro público, que é de quem acessou a página. Apenas quem acessou a página de vendas, vai estar nesse público.
+
+Importante dizer que, para funcionar, você precisa instalar o Pixel. Ah, Miguel, como é que eu vou instalar o Pixel? Olha só, a gente mostrou na aula do Pixel como você instala o Pixel. Vamos colocar aqui, aqui.
+
+Na aula do Pixel, você aprendeu a pôr o Pixel na Hotmart, tá? Só que, além de pôr o Pixel na Hotmart ou na Qiwify, etc., você também precisa pôr o Pixel na página de vendas. E como é que você faz para pôr o Pixel na página de vendas? Eu vou te mostrar isso de forma bem simples aqui agora, mas é importante para você estar com essa marcação correta, ok? Você vai clicar aqui em visão geral, gerenciador de eventos, tá? A gente acabou de abrir aqui gerenciador de eventos. Você vai selecionar a conta de anúncio que tem aquele Pixel.
+
+Você vai clicar aqui em fontes de dados, beleza? E aqui vai aparecer os Pixels que você tem criado. Como é que cria o Pixel? Está na aula do Pixel. Agora eu só vou te mostrar como é que você vai inserir esse Pixel para poder criar o público aqui.
+
+Beleza, você vai selecionar o Pixel aqui, ó. E aqui ao lado, que estava meio escondido aqui nessa tela, essa opção, você vai clicar em adicionar eventos, adicionar nova integração. Você vai clicar aqui em Pixel da meta, beleza? Adicionar código manualmente. Aí vai aparecer um código como esse aqui.
+
+Exemplo de código. Está vendo esse código aqui? E aí, como é que eu colo isso? É muito simples, olha só. Você vai copiar esse código.
+
+Daí você vai abrir o seu site no WordPress ou na ferramenta que você estiver utilizando aqui para criar o seu site. Eu vou mostrar aqui para vocês um exemplo no WordPress, pessoal. Você consegue implementar isso em qualquer tipo de site, qualquer tipo de ferramenta, tá? Eu estou mostrando aqui no WordPress porque é mais usado.
+
+Aí você fala, ah Miguel, eu uso o site da Wix. Ah Miguel, eu utilizo a RocketPages. Eu utilizo tal ferramenta.
+
+Então é muito simples. Vamos supor que você usa outra ferramenta de criar sites, por exemplo, Wix. Aí você vai colocar Wix como por Pixel do Facebook.
+
+Joga no Google, segue o tutorial, beleza? Tem tutorial para tudo. Isso aqui é muito simples, pessoal. No nosso caso aqui, utilizando o WordPress, o que a gente vai fazer? Nós vamos adicionar um plugin.
+
+E esse plugin se chama HFCM, Header Footer Coder Manager, ok? Você vai clicar aqui em adicionar plugin. No meu caso já tem adicionado, mas você vai colar isso aqui. Aí vai aparecer aqui carregando, carregando, vai aparecer esse plugin aqui, tá? Que já está aqui.
+
+Aí você vai selecionar esse plugin aqui, que depois que você instalar já vai estar aqui, ativar, instalar. Ali eu não ativei porque já estava instalado. Você vai clicar aqui em adicionar novo snippet, tá? E você vai escrever o nome do snippet como Pixel do Facebook, beleza? Que você vai colocar como header.
+
+E aqui a gente vai colar esse metapixelcode que a gente acabou de selecionar. Opa, deixa eu copiar isso aqui. Deixa eu copiar isso aqui.
+
+Vamos lá, colar. Pronto, exemplo. Agora, pessoal, todas as pessoas que acessarem o site miguelchacra.com Vão estar marcadas pelo pixel e vão aparecer aqui, ó. Vão aparecer no público que a gente acabou de criar, do Marlain acessou o site nos últimos 180 dias.
+
+Então todas as pessoas aqui que acessarem o meu site ali, que eu instalei o pixel, vão aparecer dentro desse público, ok? Então eu mostrei aqui como é que vocês colocam o público. Agora, vamos, por exemplo, criar agora de quem iniciou o checkout. Ou seja, a pessoa que chegou a clicar no botão de compra, mas pode não ter efetuado a compra ainda.
+
+Como é que funciona isso? Então pra você segmentar pro público que acessou o checkout, ou seja, que clicou no botão de comprar, você vai clicar em público personalizado, site. Você vai selecionar aqui o pixel, no caso a gente tá usando o pixel Marlain de exemplo. Vamos clicar aqui em initiate checkout.
+
+Initiate checkout significa que essa pessoa chegou a acessar o checkout, ou seja, que ela chegou lá e clicou no botão de comprar. Não necessariamente ela pode ter comprado ou não, mas clicou no botão e vai aparecer aqui. Miguel, olha só, quando eu tô criando o público, não tá aparecendo essa opção pra mim.
+
+Não tá aparecendo initiate checkout, nem lead, nem purchase, nenhuma dessas opções. Por quê? É muito simples e é bom você ter tido essa dúvida. Esses eventos só vão aparecer aqui depois de terem acontecido.
+
+Então, por exemplo, suponha que ninguém clicou no seu checkout ainda. Então isso aqui não vai aparecer aqui. Mas aí depois que alguém clicar no botão do seu checkout, depois que você tem instalado o pixel e tudo mais, aí vai aparecer esse evento uns 5 ou 10 minutos depois pra você selecionar.
+
+Então tem esse timezinho aqui. Então aqui vamos colocar, por exemplo, Marlain acessou o checkout últimos 30 dias, últimos 60 dias, últimos 180 dias, ou seja lá do tamanho do público que você quiser. Pra esse público funcionar, você precisa ter o pixel no checkout.
+
+Como é que coloca o pixel no checkout, Miguel? Na aula de pixel eu te mostrei como você vai inserir esse pixel aí, por exemplo, na Hotmart. Mas você usa outra plataforma? Quewify, Eduze, você vai chegar e pesquisar aqui, ó, como colocar pixel da Hotmart na Quewify. Enfim, pessoal, não tem como eu te chegar aqui e mostrar pra vocês como colocar em todas as plataformas.
+
+Por quê? Porque são dezenas de plataformas diferentes. Mas é muito simples, toda plataforma tem como você colocar ali o código do pixel e tem vários tutoriais mostrando como é que você faz, tá? E a mesma coisa, o próximo passo é a lista de compradores do site. O que é essa lista de compradores do site? É quem efetivamente chegou e comprou ali o produto.
+
+Como é que você vai criar essa parada? Você vai clicar em público personalizado, site. Aqui em eventos a gente vai selecionar por Chase, que significa compra. Então aqui vamos criar, por exemplo, Marlene comprou produto nos últimos 30 dias.
+
+Uma coisa fundamental, uma importância que eu sempre recomendo pra vocês também, é criar um pixel pra cada produto, ou pra cada nicho, de preferência pra cada produto. Então, por exemplo, suponha que tu tenha um produto X e um produto Y. Você vai vir aqui e criar um pixel pro produto X e outro pixel pro produto Y. Pra não ficar misturado essas informações, assim vai ser mais fácil de você configurar as coisas, tá bom? Então aqui a gente criou também o público de quem comprou no site nos últimos 30 dias. Mesma coisa, você também precisa ter o pixel instalado no checkout da sua plataforma de vendas.
+
+Agora a gente já entra em outra coisa, que são os compradores de lista. O que são os compradores de lista, pessoal? Uma lista é quando você exporta uma planilha de compradores. Então você vai lá na sua plataforma de vendas e você exporta todos os e-mails de quem comprou o seu produto.
+
+E com isso você consegue subir essa lista no Facebook também. Como é que você faz isso? Você vai em criar público, público personalizado. Aqui você vai colocar a opção lista de clientes.
+
+Você vai clicar aqui em avançar, aqui vai ter um exemplo de planilha e tudo mais. Você vai clicar em avançar e aqui você vai arrastar a sua planilha de compradores. Então eu vou pegar aqui, pessoal, uma planilha aleatória de compradores, por exemplo.
+
+Baixei aqui para demonstrar para a aula. Então eu peguei essa aqui, essa planilha, eu vou clicar em avançar. Essa planilha são todos os compradores de determinado produto na Qlify.
+
+Então vamos clicar aqui em avançar. E agora, aqui a gente está aparecendo alguns dados, não carregar. O que você vai fazer? Onde tem e-mail, você vai colocar aqui e-mail, certinho.
+
+Celular, você vai colocar telefone, certinho. Últimos dígitos do cartão, você não vai carregar, isso não tem a ver. E-mail do afiliado, não tem a ver, isso aqui é os dados do cliente.
+
+Documentos, não tem nada a ver. Esses daqui são os campos que o Facebook mapeou dos seus clientes. Aí você vai vir aqui em ação necessária.
+
+E aí você vai ver campos que você possa mapear também. Por exemplo, país. Vamos chegar aqui e marcar país.
+
+Brasil, Portugal. Esses daqui são os campos que a gente vai usar primordialmente. Deixa eu avançar aqui novamente.
+
+E-mail, telefone, país. Se tiver mais alguns dados que você conseguir exportar, melhor ainda. E você vai clicar aqui em importar e criar.
+
+Eu vou fechar aqui, pessoal. Porque esse público aqui eu acho que já até tem aqui. Foi só para demonstrar a vocês como é que vocês vão subir.
+
+Aí vai vir aqui com o nome da planilha, né? Você pode chegar e mudar o nome desse público. Desse outro público aqui que você acabou de marcar. Como é que você faz isso? Você vai selecionar aqui.
+
+Aí apareceu aqui o nome do público, perdão. Vamos aqui de novo. Então.
+
+Concluir. Vitalizar. E aqui você coloca outro nome.
+
+Por exemplo, compradores. Produto X. Nome do produto e lista. Por exemplo.
+
+Tá bom? Então aqui eu te mostrei como é que você exporta uma planilha aqui de compradores. Agora, quais são outros públicos que você consegue criar? Vamos supor aqui que você está criando um público em trabalhar com uma pessoa que já tem audiência, já tem seguidores e coisas assim. Você vai fazer nesse caso criar público personalizado.
+
+E aqui você vai criar, por exemplo, conta do Instagram. Aí você vai selecionar aqui a conta do Instagram. E você consegue utilizar a opção, por exemplo, que começaram a seguir.
+
+Aqui é o público de seguidores. Então você vai colocar aqui Instagram. Conta X, nome da conta.
+
+Seguidores. Esse daqui seria o público de seguidores. Você vem aqui e cria público.
+
+Aí, por exemplo, você pode criar um público de engajamento. Que é qualquer pessoa que acessou o perfil, curtiu alguma coisa, enviou mensagem. E aqui você pode selecionar o tempo.
+
+Por exemplo, qualquer pessoa que engajou no perfil nos últimos 30 dias. Sabe? Ou então você pode chegar a qualquer pessoa que visitou o perfil nos últimos 30 dias. Qualquer pessoa que engajou com publicação anúncio.
+
+Qualquer pessoa que enviou uma mensagem. Você pode ir criando vários públicos. Qual que é o mais importante de vocês fazerem? Seguidores, tá? É muito importante de vocês fazerem seguidores.
+
+E é importante vocês marcarem engajamento. E daí você pode criar vários públicos de engajamento. Por exemplo, você vem uma vez aqui e cria engajamento 365 dias.
+
+Depois você vem de novo e cria um engajamento 180. Depois engajamento 7 dias. Depois engajamento 30 dias.
+
+Você vai criando vários desses públicos para deixar tudo separado. Então aqui vocês aprenderam também a criar públicos de seguidores e de engajamento. Agora, por último, existe o público que eu vou mostrar aqui para vocês.
+
+Dos públicos mais importantes. Que é o público de ver o vídeo. Então supõe que você postou aqui no seu Instagram um vídeo.
+
+E você quer fazer anúncio só para quem viu 50% de tal vídeo. Então você vai colocar aqui. Pessoas que viram 50% de tal vídeo.
+
+Você vai selecionar o vídeo. E aqui você pode selecionar de página do Facebook. Você pode selecionar de conta do Instagram.
+
+E basta ir marcando os vídeos aqui e confirmando. Miguel, tem como selecionar todos os vídeos de uma vez? Não tem. Você tem que selecionar manualmente.
+
+Infelizmente até hoje o Facebook não tem essa opção. Nossa, mas eu tenho 15 mil vídeos. Pois é, você teria que fazer manualmente de 15 mil vídeos.
+
+Então, infelizmente essa é a realidade. E qual público eu devo fazer? 3 segundos? Não, inútil quem viu 3 segundos do seu vídeo. A partir de 50%, quem viu metade do seu vídeo já começa a ficar interessante.
+
+Significa que a pessoa deu mais atenção para determinado produto. Determinada coisa que você estiver falando no seu perfil. Você consegue fazer isso tanto para um vídeo específico.
+
+Ou você pode chegar e selecionar todos os vídeos do seu canal. Agora que eu te falei aqui de como você cria esses públicos. Eu preciso te mostrar também como você usa esses públicos.
+
+A gente vai abordar isso mais a fundo dentro da aula de subindo campanhas. Mas é essencial te mostrar uma coisa aqui também. Se eu chegar aqui e clicar em criar.
+
+E for fazer uma campanha nova. Campanha de vendas manual. Aqui vai ter uma campanha de vendas.
+
+A gente vai abordar isso aqui na aula de subindo campanha. Fique tranquilo. O que eu quero te mostrar especificamente é o público.
+
+Como é que você vai anunciar especificamente para um público. Nesse caso, por exemplo. Aqui a gente estaria criando um anúncio para pessoas do Brasil todo.
+
+Se eu for aqui em mudar por opções originais de público. No gerenciador de anúncios. Chegar aqui em públicos personalizados.
+
+Escrever aqui, por exemplo. Comprou produto nos últimos 30 dias. Aqui eu só vou anunciar um anúncio para quem comprou.
+
+E se eu vim aqui em acessou site nos últimos 30 dias. Só vai para quem acessou. Agora é muito importante você desmarcar essa caixinha aqui do público.
+
+O que é essa caixinha? Se você marcar essa caixinha o Facebook vai pegar as pessoas que acessaram o site. E além delas ele vai exibir isso para qualquer outra pessoa. Mas qualquer outra pessoa que o Facebook acha que tem probabilidade de comprar.
+
+Em teoria você expandir para quem tem mais probabilidade de comprar. Além de quem acessou o site é bom. Mas na prática é horrível para remarketing.
+
+Porque aqui para remarketing. Para campanhas de quem só acessou o site. Você quer falar uma comunicação específica para essa pessoa.
+
+Que não vai fazer sentido para a pessoa que já conheceu o seu produto. Então se a gente vende um produto de concerto de iPhone do Carlos. E a gente chega e faz um anúncio.
+
+Concerto do iPhone do Carlos funciona? Só vai clicar nesse anúncio quem chegou na página de venda de concerto do iPhone do Carlos. Então faz sentido a gente não marcar essa opção aqui para campanhas de remarketing. Miguel e como é que eu faço para segmentar quem acessou o site e não comprou? Porque aqui a gente está fazendo anúncio para todo mundo que acessou o site.
+
+Tanto quem comprou para quem não comprou. E para excluir quem comprou. Você vai clicar em adicionar exclusões.
+
+E aqui você vai colocar os compradores. Por exemplo aqui comprou produto pelo site. Então lista de compradores aqui pelo e-mail.
+
+Você vai acessar aqui e colocar. Tudo bem? Mesma coisa com o checkout. Por exemplo você quer falar só para quem clicou no botão de comprar.
+
+Só que não concluir a venda. Você vai colocar incluir o público personalizado de acessar o checkout. E excluir o público personalizado de comprar o produto.
+
+Agora tem outro detalhe importante aqui pessoal. O que eu te mostrei até agora foram públicos quentes. O que é público quente? Público que já te conhece ou que te acompanha.
+
+Coisas assim. Agora também existe como você abordar públicos frios. O que são esses públicos frios? Esses públicos frios a gente vai dividir eles aqui.
+
+Em interesses e look alike. Que é um dos públicos mais poderosos de todo o Facebook. Então por exemplo se eu chego aqui pessoal.
+
+E venho aqui por exemplo. Nas pessoas que compraram o produto nos últimos 30 dias. Clico aqui em criar semelhante.
+
+Eu chego aqui e coloco Brasil. Brasil 1%. E crio o público.
+
+O que vai acontecer? O Facebook vai buscar um milhão de pessoas que tenham um perfil parecido. Então ele vai buscar um milhão de pessoas que tenham um perfil parecido. Com as pessoas que já compraram o seu produto.
+
+Ou seja ele vai pegar de todas as 100 milhões de brasileiros. Ele vai pegar um milhão das pessoas que são mais parecidas com o seu público alvo. Para isso o ideal é você ter no mínimo 100 compradores.
+
+Mas se você tiver uns 100, 200 compradores. Você consegue criar um look alike muito bom. E esse público costuma funcionar muito bem.
+
+E aí como é que você faz para anunciar para esse público? Você vai chegar aqui e colocar público semelhante. E aqui vai ter o público de compradores. Esse daqui é o público de look alike.
+
+Que geralmente tem um milhão de pessoas. Além disso a gente tem os públicos de interesse. O que são esses públicos de interesse? São públicos que têm interesse, curtem páginas, curtem conteúdos sobre determinado assunto.
+
+Por exemplo se eu chegar aqui e escrever dieta. Nós vamos estar anunciando para 3.800.000 pessoas que têm interesse em dieta paleolítica, por exemplo. Se eu quero anunciar para quem tem interesse em marketing digital.
+
+Que a gente tem um público de até 24 milhões de pessoas. E aqui pessoal vamos supor que a gente quer segmentar ainda mais. Um público que tem interesse em marketing digital.
+
+E ao mesmo tempo tem interesse em Google Ads. E aqui, opa, desculpa. Aqui eu coloquei pessoas que trabalham para o Google Ads.
+
+Não pessoas que têm interesse. Está vendo que aqui está em dados demográficos. E em cima está escrito interesse.
+
+São coisas diferentes. Deixa eu ver aqui se tem um público de interesse em Google Ads no Facebook. Eu acredito que não tenha.
+
+Não tem. É. Mas se eu chegar aqui e colocar, sei lá. Conteúdo.
+
+Marketing de conteúdo. Pessoas que têm interesse em marketing digital e marketing de conteúdo. Aqui já até diminuiu.
+
+Eu tenho, perdão. Aqui eu tenho 20 milhões de pessoas que têm interesse em marketing digital. E dessas 20 milhões, apenas 10 milhões têm interesse tanto em marketing digital quanto em marketing de conteúdo.
+
+Então você quer achar um público bem nichado, por exemplo. Você pode chegar aqui e pesquisar dieta paleolítica. E pesquisar pessoas que têm interesse em dieta paleolítica.
+
+3 milhões, mas que têm interesse em, sei lá, exercícios também. Já diminuiu. Para 2,7 milhões.
+
+E assim você consegue ir nichando cada vez mais seu público. Miguel, uma pergunta importante. Você costuma utilizar esses públicos de interesse? E a resposta é não muito.
+
+Por quê? Porque o algoritmo do Facebook é muito bom. E ele vai encontrar, por exemplo, você tem um produto para um público amplo de, sei lá, emagrecimento, de renda extra, de saúde, de coisa assim. O Facebook, o próprio algoritmo dele, já vai encontrar as pessoas certas sem necessariamente você precisar colocar um interesse aqui ou coisa assim.
+
+Isso é um teste a mais depois que você já validou o criativo. Então você testou um anúncio, o anúncio deu certo. Depois você pode pegar o mesmo anúncio e testar públicos diferentes para o mesmo anúncio.
+
+Testar um público de lookalike, testar um público de interesse para o anúncio já validou. Mas por padrão, quando a gente começa a subir um anúncio para público frio, para gente que não conhece, nós deixamos assim, aberto. Brasil 18 a 65 mais idade aberta.
+
+E todos os gêneros. Se tiver um produto só para mulher, você vai clicar aqui só mulher. Produto só para homem, só para homem.
+
+Idade, se tiver um produto que é especificamente para quem tem mais de 40 anos, você vai chegar aqui, 40 anos para mais. E assim você consegue controlar os públicos da sua campanha. Eu espero ter sido uma aula útil para você.
+
+E eu te vejo na próxima aula. Um forte abraço.

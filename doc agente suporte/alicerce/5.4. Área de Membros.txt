@@ -1,0 +1,27 @@
+Vamos para o segundo pilar que área de membros. O que seria a área de membros é onde você hospeda o conteúdo do seu projeto. Essa tela que vocês estão vendo agora tem todo um lealto visual, mas ele não é feito aqui. 
+
+No caso, uma designer fez pra mim, enfim. Aqui a gente vai focar na parte do conteúdo, como adicionar módulos, como adicionar aulas, como editar primeiro ponto. Suponhamos que você queira criar o seu primeiro módulo. 
+
+O módulo inicial de boas vindas, aqui no meu caso, se chama ponto de partida. Para adicionar um módulo, você vai clicar em adicionar módulo. Vai abrir uma tela como essa. 
+
+Eu vou entrar em uma tela que já está pronta para vocês irem como fica. Aqui é a primeira aula do GoldSafe. A primeira aula que vocês acessam ao adquirir o produto. 
+
+Você vai dar um título às suas aulas. Aqui tem uma imagem. É a forma que vai aparecer quando o aluno tenta clicar no vídeo. 
+
+Por exemplo, se você não selecionar a própria plataforma, vai definir uma imagem aleatória do seu vídeo para que seja como a capa, digamos, assim, do vídeo encidá-la em si. Aqui eu selecionei a logo marca em todas as aulas para ficar harmonizado, fica bonito, ficar harmonico. Editor de conteúdo é nessa parte aqui que eu disponibilizo para vocês links de checklists, links para baixar material. 
+
+Se você quiser fornecer alguma informação adicional ao seu aluno também, você vai digitar nessa caixa aqui. Quando ele clicar lá no seu curso em conteúdo, é aqui que tem que estar o que você deseja passar a mensagem que você quer passar e transmitir para o seu aluno. A nexos normalmente eu não uso liberação. 
+
+Aqui ele já vem selecionado liberação imediata, ou seja, quando o aluno compra o seu produto, ele já tem as aulas liberadas, mas você tem a opção de trancar aulas como eu tranquei algumas dentro do seu site. Você clique aqui em dias e selecione enquanto os dias você quer que aquela aula seja liberada para o seu aluno. Vamos aqui agora ao vídeo, suponhamos que o seu produto seja em vídeo aula. 
+
+Como adicionar esse vídeo, você pode adicionar uma vídeo aula de diversas formas, você pode clicar aqui e baixar diretamente do seu arquivo de foto, do celular, o computador, ou você pode baixar do Google Drive, que é normalmente o que eu utilizo. Então ele vai entrar aqui, aqui estão todas as minhas aulas percebam. Aqui eu separei por módulos para deixar organizado, vamos aqui ao primeiro ponto de partida. 
+
+Aí eu vou clicar aqui nessa aula e ela vai baixar e vai processar. Vou clicar aqui para vocês verem. Ao clicar você aperta o botão azul e vai fazer o download.
+
+Vou esperar processar. Pronto, completou. Se tiver tudo certo, aqui para adicionar sua aula, você vem em criar e publicar e a aula vai aparecer aqui dessa forma. 
+
+Esses três trascinhos do canto esquerdo, se você clicar e manter o seu dedo pressionado, você consegue trocar essa aula de lugar, está vendo? Então tem essa opção também, suponhamos que você adicionou uma aula em um lugar que não era o correto, então você tem essa opção aqui de mudar de lugar também. Então basicamente, aqui seria sobre isso, área de membros. Temos também dentro da área de membros alunos, aqui se você quiser adicionar algum aluno, vamos supor um aluno comprar o seu produto digital e meio errado e você precisa reenviar o acesso. 
+
+Você vem aqui em alunos, adicionar aluno, vai digitar o nome, o e-mail e clicar em adicionar aluno. Turmas não precisam mexer e configurações é referente ao layout visual que vocês visualizaram no início da aula. Aqui é o logo tipo, a cor, você seleciona a cor da sua paleta, e aqui é onde você vai adicionar as fotos da sua área de membros, a forma que você quer que o seu aluno visualiza estilo netflix mesmo, sabe? Aqui que você adiciona, e é claro, você já terá que ter criado essa arte ou você mesmo através do aplicativo canva ou de algum editor ou um designer que faça o serviço para você. 
+
+Então é aqui em configurações que você vai lidar e tratar sobre a parte visual da sua área de membros. Aqui você tem a opção de ativar um certificado de conclusão do curso, ou seja, quando o seu aluno completar 100% do curso, quando ele assistir 100% das aulas, ele recebe um certificado. Então nessa aula aqui pessoal, basicamente é sobre isso.
