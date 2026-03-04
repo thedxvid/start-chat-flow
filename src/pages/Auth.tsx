@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Crown, Key, Mail, ArrowLeft, CheckCircle, Lock } from 'lucide-react';
+import { Loader2, Crown, Key, Mail, ArrowLeft, CheckCircle, Lock, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -25,6 +25,13 @@ export default function Auth() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
+  const [resetCompleted, setResetCompleted] = useState(false);
+
+  // Password visibility toggles
+  const [showSignInPassword, setShowSignInPassword] = useState(false);
+  const [showSignUpPassword, setShowSignUpPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { signIn, signUp, isRecoveryMode, clearRecoveryMode } = useAuth();
   const navigate = useNavigate();
@@ -32,6 +39,9 @@ export default function Auth() {
 
   // Detectar recovery mode via contexto global e fallback por URL
   useEffect(() => {
+    // Não reativar o formulário se o reset já foi concluído
+    if (resetCompleted) return;
+
     const urlPayload = `${window.location.search}${window.location.hash}`;
     const recoveryFromUrl = urlPayload.includes('type=recovery');
 
@@ -41,7 +51,7 @@ export default function Auth() {
       setShowForgotPassword(false);
       setError('');
     }
-  }, [isRecoveryMode]);
+  }, [isRecoveryMode, resetCompleted]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,20 +95,27 @@ export default function Auth() {
       }
 
       setPasswordResetSuccess(true);
+      // Marcar reset como concluído ANTES de limpar o recovery mode
+      // para impedir que o useEffect reative o formulário
+      setResetCompleted(true);
+
       toast({
         title: 'Senha redefinida!',
         description: 'Sua nova senha foi salva com sucesso.',
       });
 
-      // Limpar recovery mode, invalidar sessão temporária de recovery e voltar para /auth
-      clearRecoveryMode();
-      await supabase.auth.signOut();
+      // Limpar URL imediatamente para remover o token de recovery
       window.history.replaceState({}, document.title, '/auth');
+      // Fazer signOut para invalidar sessão de recovery e DEPOIS limpar o estado
+      await supabase.auth.signOut();
+      clearRecoveryMode();
+
       setTimeout(() => {
         setShowResetPassword(false);
         setPasswordResetSuccess(false);
+        setResetCompleted(false);
         navigate('/auth', { replace: true });
-      }, 1200);
+      }, 1500);
     } catch (err: any) {
       setError(err.message || 'Erro ao redefinir senha.');
       toast({
@@ -318,27 +335,49 @@ export default function Auth() {
                 <form onSubmit={handleResetPassword} className="space-y-4">
                   <div>
                     <Label htmlFor="new-password">Nova senha</Label>
-                    <Input
-                      id="new-password"
-                      type="password"
-                      placeholder="Mínimo 6 caracteres"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      required
-                      minLength={6}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="new-password"
+                        type={showNewPassword ? 'text' : 'password'}
+                        placeholder="Mínimo 6 caracteres"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required
+                        minLength={6}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+                        tabIndex={-1}
+                      >
+                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <Label htmlFor="confirm-password">Confirmar senha</Label>
-                    <Input
-                      id="confirm-password"
-                      type="password"
-                      placeholder="Repita a senha"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
-                      minLength={6}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="confirm-password"
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        placeholder="Repita a senha"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                        minLength={6}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+                        tabIndex={-1}
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
 
                   {error && (
@@ -471,13 +510,24 @@ export default function Auth() {
                           Esqueceu a senha?
                         </button>
                       </div>
-                      <Input
-                        id="signin-password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                      />
+                      <div className="relative">
+                        <Input
+                          id="signin-password"
+                          type={showSignInPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          required
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSignInPassword(!showSignInPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+                          tabIndex={-1}
+                        >
+                          {showSignInPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
                     </div>
                     <Button type="submit" className="w-full" disabled={loading}>
                       {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -537,14 +587,25 @@ export default function Auth() {
                     </div>
                     <div>
                       <Label htmlFor="signup-password">Senha</Label>
-                      <Input
-                        id="signup-password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        minLength={6}
-                      />
+                      <div className="relative">
+                        <Input
+                          id="signup-password"
+                          type={showSignUpPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          required
+                          minLength={6}
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSignUpPassword(!showSignUpPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+                          tabIndex={-1}
+                        >
+                          {showSignUpPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
                     </div>
                     <Button type="submit" className="w-full" disabled={loading}>
                       {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
