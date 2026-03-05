@@ -301,13 +301,9 @@ Deno.serve(async (req: Request) => {
                         <span style="font-size:13px;color:#8a6a1a;font-weight:600;">📧 E-mail</span><br/>
                         <span style="font-size:15px;color:#1a1a1a;font-weight:500;">${email}</span>
                       </td></tr>
-                      <tr><td style="padding-bottom:12px;border-top:1px solid #e8dcc0;padding-top:12px;">
+                      <tr><td style="border-top:1px solid #e8dcc0;padding-top:12px;">
                         <span style="font-size:13px;color:#8a6a1a;font-weight:600;">🔑 Senha</span><br/>
                         <span style="font-family:monospace,'Courier New',monospace;font-size:18px;font-weight:700;color:#1a1a1a;letter-spacing:1px;">${tempPassword}</span>
-                      </td></tr>
-                      <tr><td style="border-top:1px solid #e8dcc0;padding-top:12px;">
-                        <span style="font-size:13px;color:#8a6a1a;font-weight:600;">🎯 Plano</span><br/>
-                        <span style="font-size:15px;color:#1a1a1a;font-weight:500;text-transform:capitalize;">${planType}</span>
                       </td></tr>
                     </table>
                   </td></tr>
