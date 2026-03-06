@@ -234,7 +234,15 @@ const MODULES: Module[] = [
 // ──────────────────────────────────────────────
 function searchModules(query: string): Module[] {
     if (!query.trim()) return [];
-    const q = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    // Divide a query em palavras e busca por QUALQUER uma delas
+    const words = query
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .split(/\s+/)
+        .filter(w => w.length > 1);
+
+    if (words.length === 0) return [];
 
     return MODULES.filter(mod => {
         const haystack = [
@@ -245,7 +253,16 @@ function searchModules(query: string): Module[] {
             ...mod.contents,
             ...mod.tags,
         ].join(' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        return haystack.includes(q);
+
+        // Retorna módulos que contenham pelo menos UMA das palavras
+        return words.some(w => haystack.includes(w));
+    }).sort((a, b) => {
+        // Módulos que batem mais palavras ficam primeiro
+        const hayA = [a.title, ...a.tags].join(' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const hayB = [b.title, ...b.tags].join(' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const scoreA = words.filter(w => hayA.includes(w)).length;
+        const scoreB = words.filter(w => hayB.includes(w)).length;
+        return scoreB - scoreA;
     });
 }
 
@@ -260,10 +277,10 @@ interface SupportMessage {
 }
 
 const categories = [
-    { icon: Lock, title: 'ACESSO', description: 'Liberação de aulas e materiais complementares.', iconColor: 'text-gold', iconBg: 'bg-gold/10', query: 'acesso liberação aulas' },
-    { icon: Brain, title: 'NÍVEL 1', description: 'Fundamentos e mentalidade do Sistema Start.', iconColor: 'text-gold', iconBg: 'bg-gold/10', query: 'fundamentos cofre ouro plano ação' },
-    { icon: Trophy, title: 'NÍVEL 2', description: 'Estratégias avançadas e escala de resultados.', iconColor: 'text-gold', iconBg: 'bg-gold/10', query: 'vertente gold silver advanced' },
-    { icon: Columns, title: 'NÍVEL 3', description: 'Estruturação ativa e tráfego pago completo.', iconColor: 'text-gold', iconBg: 'bg-gold/10', query: 'tráfego pago estrutura ativa anúncios' },
+    { icon: Lock, title: 'ACESSO', description: 'Liberação de aulas e materiais complementares.', iconColor: 'text-gold', iconBg: 'bg-gold/10', query: 'acesso liberação travado destravar checklist' },
+    { icon: Brain, title: 'NÍVEL 1', description: 'Fundamentos e mentalidade do Sistema Start.', iconColor: 'text-gold', iconBg: 'bg-gold/10', query: 'cofre ouro plano mapeamento gold safe fundamentos' },
+    { icon: Trophy, title: 'NÍVEL 2', description: 'Estratégias avançadas e escala de resultados.', iconColor: 'text-gold', iconBg: 'bg-gold/10', query: 'vertente gold silver bronze monetização estratégia' },
+    { icon: Columns, title: 'NÍVEL 3', description: 'Estruturação ativa e tráfego pago completo.', iconColor: 'text-gold', iconBg: 'bg-gold/10', query: 'tráfego pago estrutura compilado escala orgânico' },
 ];
 
 const recursos = [
