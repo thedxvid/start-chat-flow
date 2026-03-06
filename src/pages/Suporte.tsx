@@ -492,6 +492,7 @@ export function Suporte() {
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                             placeholder="Pesquisar por tópico, aula ou ferramenta..."
+                            style={{ letterSpacing: '-0.01em' }}
                             className="pl-12 pr-10 h-14 text-base rounded-2xl border-border/60 bg-white shadow-md focus:ring-2 focus:ring-gold/30 hover:shadow-lg transition-shadow"
                             autoComplete="off"
                         />
